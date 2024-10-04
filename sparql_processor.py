@@ -27,17 +27,48 @@ class SPARQLProcessor:
                 pickle.dump(self.graph, f)
             print(f"Serialized graph saved to {serialized_path}")
 
-    def process_query(self, query):
+
+    def generate_response(self, message):
+
+        if "SELECT" not in message.upper():
+            return "I can only process SPARQL queries. Please enter a SPARQL query only."
+
         try:
-            results = self.graph.query(query)
-            return [str(row) for row in results]
+            queryResult = self.process_query(message)
+            return self.format_results(queryResult)
+
         except Exception as e:
             return f"Error executing query: {str(e)}"
 
-    def generate_response(self, message):
-        if message.lower().startswith("sparql:"):
-            query = message[7:].strip()
-            results = self.process_query(query)
-            return f"Query results: {results}"
-        else:
-            return "I can only process SPARQL queries. Please start your message with 'SPARQL:' followed by your query."
+        
+
+    def process_query(self, query):
+        results = self.graph.query(query)
+        headers = results.vars
+        rows = []
+        
+        # Extract each row as a dictionary of variable-value pairs
+        for row in results:
+            row_dict = {str(var): str(row[var]) for var in headers}
+            rows.append(row_dict)
+        
+        return headers, rows        
+
+    def format_results(self, queryResult):
+
+        headers, results = queryResult
+
+        if isinstance(headers, str):
+            return headers  # Return error message if process_query returned an error string
+        
+        if not results:
+            return "No results found for the query."
+        
+        # Format results as a table-like output
+        output = "Query Results:\n"
+        output += "\t".join(str(h) for h in headers) + "\n"  # Add headers
+        output += "-" * 40 + "\n"            # Add separator
+        for row in results:
+            output += "\t".join(row.get(str(var), '') for var in headers) + "\n"
+    
+        return output

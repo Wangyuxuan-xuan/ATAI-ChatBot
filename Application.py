@@ -36,7 +36,7 @@ class Agent:
                 # Retrieve messages from this chat room.
                 # If only_partner=True, it filters out messages sent by the current bot.
                 # If only_new=True, it filters out messages that have already been marked as processed.
-                for message in room.get_messages(only_partner=True, only_new=True):
+                for message in room.get_messages(only_partner=False, only_new=True):
                     print(
                         f"\t- Chatroom {room.room_id} "
                         f"- new message #{message.ordinal}: '{message.message}' "
@@ -46,7 +46,11 @@ class Agent:
                     response = self.sparql_processor.generate_response(message.message)
                     
                     # Send a message to the corresponding chat room using the post_messages method of the room object.
-                    room.post_messages(response)
+                    
+                    print(f"The response is: {response}")
+                    
+                    # room.post_messages(response)
+                    
                     # room.post_messages(f"I Received your message: '{message.message}' ")
                     # Mark the message as processed, so it will be filtered out when retrieving new messages.
                     room.mark_as_processed(message)
