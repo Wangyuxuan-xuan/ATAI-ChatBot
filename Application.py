@@ -1,7 +1,7 @@
 from speakeasypy import Speakeasy, Chatroom
 from typing import List
 import time
-
+from sparql_processor import SPARQLProcessor
 SPEAK_EASY_HOST = 'https://speakeasy.ifi.uzh.ch'
 
 SPEAK_EASY_USERNAME = "yuxuan.wang"
@@ -10,11 +10,16 @@ BOT_NAME = "red-dragon Bot"
 BOT_PASSWORD = "X0ynU0H9"
 
 LISTEN_FREQENCY = 2
-
+GRAPH_PATH = './Dataset/14_graph.nt'
 
 class Agent:
     def __init__(self, username, password):
         self.username = username
+        self.password = password
+        
+        # Initialize KG
+        self.sparql_processor = SPARQLProcessor(GRAPH_PATH)
+
         # Initialize the Speakeasy Python framework and login.
         self.speakeasy = Speakeasy(host=SPEAK_EASY_HOST, username=username, password=password)
         self.speakeasy.login()  # This framework will help you log out automatically when the program terminates.
@@ -31,16 +36,17 @@ class Agent:
                 # Retrieve messages from this chat room.
                 # If only_partner=True, it filters out messages sent by the current bot.
                 # If only_new=True, it filters out messages that have already been marked as processed.
-                for message in room.get_messages(only_partner=False, only_new=True):
+                for message in room.get_messages(only_partner=True, only_new=True):
                     print(
                         f"\t- Chatroom {room.room_id} "
                         f"- new message #{message.ordinal}: '{message.message}' "
                         f"- {self.get_time()}")
 
                     # Implement your agent here #
-
-                    # Send a message to the corresponding chat room using the post_messages method of the room object.
+                    response = self.sparql_processor.generate_response(message.message)
                     
+                    # Send a message to the corresponding chat room using the post_messages method of the room object.
+                    room.post_messages(response)
                     # room.post_messages(f"I Received your message: '{message.message}' ")
                     # Mark the message as processed, so it will be filtered out when retrieving new messages.
                     room.mark_as_processed(message)
