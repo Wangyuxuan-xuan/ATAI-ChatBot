@@ -12,6 +12,14 @@ class SPARQLProcessor:
         self.get_graph_cache(graph_path, serialized_path)
 
     def get_graph_cache(self, graph_path, serialized_path):
+        """
+        Cache the RDF into binary file so that it will be faster to load next time
+        Create the cache if it doesn't exist
+        
+        Args:
+            graph_path (str): The path to the input RDF file.
+            serialized_path (str): The path to the serialized graph.
+        """
         # Check if serialized graph exists
         if os.path.exists(serialized_path):
             print("Loading serialized graph...")
@@ -29,6 +37,18 @@ class SPARQLProcessor:
 
 
     def generate_response(self, message):
+        """
+        Generate a response based on the input message.
+        It has two steps:
+        1. Check if the message is a SPARQL query. If it is, process the query and return the results.
+        2. Format the results to be user-friendly
+
+        Args:
+            message (str): The input message from the user.
+
+        Returns:
+            str: The generated response.
+        """
 
         if "SELECT" not in message.upper():
             return "I can only process SPARQL queries. Please enter a SPARQL query only."
