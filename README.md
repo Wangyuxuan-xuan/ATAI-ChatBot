@@ -11,7 +11,8 @@ This is a class project form ATAI
    ```
       
       1. Check import `from speakeasypy import Speakeasy` see if it can be interpreted 
-3. Run `Application.py` and see if the sever can be setup
+3. Create Dataset fonder under project path, copy `14_graph.ttl` to `Dataset/`
+4. Run `Application.py` and see if the sever can be setup
 
 ## Access ChatBot
 1. Login to UZH [Speakeasy](https://speakeasy.ifi.uzh.ch/) with credentials

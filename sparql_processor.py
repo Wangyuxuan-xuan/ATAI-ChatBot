@@ -14,8 +14,8 @@ class SPARQLProcessor:
     def get_graph_cache(self, graph_path, serialized_path):
         """
         Cache the RDF into binary file so that it will be faster to load next time
-        Create the cache if it doesn't exist
-        
+        Create the cache if it doesn't exist, it will create a new file `graph.pkl` under the `Dataset/` folder
+
         Args:
             graph_path (str): The path to the input RDF file.
             serialized_path (str): The path to the serialized graph.
