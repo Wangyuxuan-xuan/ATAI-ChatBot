@@ -1,4 +1,4 @@
-name: ATATChatbot
+name: ATAIChatbot
 channels:
   - defaults
 dependencies:
