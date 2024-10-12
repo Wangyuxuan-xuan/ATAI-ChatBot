@@ -53,7 +53,11 @@ class Agent:
                     # Implement your agent here #
 
                     response = self.get_response(message.message)
-                    room.post_messages(response)
+                    
+                    response = response.encode('utf-8')
+                    room.post_messages(response.decode('latin-1'))
+                    
+                    # room.post_messages(response)
                     
     
                     # ********************
