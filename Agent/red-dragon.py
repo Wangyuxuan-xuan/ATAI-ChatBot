@@ -3,7 +3,7 @@ from typing import List
 import time
 
 # ADDED BY OMER
-from sparql_query import SPARQLQueryExecutor
+from question_processor import question_processor
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
 listen_freq = 2
@@ -12,7 +12,7 @@ class Agent:
 
     def __init__(self, username, password):
         # Initialize the SPARQL executor with the dataset path
-        self.sparql_executor = SPARQLQueryExecutor()
+        self.question_processor = question_processor()
 
         self.username = username
         # Initialize the Speakeasy Python framework and login.
@@ -49,11 +49,12 @@ class Agent:
                         f"- {self.get_time()}")
 
                     # ******************** 
-                    # ADDED BY OMER
                     # Implement your agent here #
 
                     response = self.get_response(message.message)
-                    
+                    # print the response
+                    print(f"response is : {response}")
+
                     response = response.encode('utf-8')
                     room.post_messages(response.decode('latin-1'))
                     
@@ -98,12 +99,8 @@ class Agent:
         Returns:
             str: The response to the input message.
         """
-
-        # Check if it is a SPARQL query
-        if not self.sparql_executor.is_sparql_query(message):
-            return "I can only process SPARQL queries. Please enter a SPARQL query only."
-        else:
-            return self.sparql_executor.process_sparql_query(message)
+        return self.question_processor.get_response(message)
+        
 
     
     @staticmethod
