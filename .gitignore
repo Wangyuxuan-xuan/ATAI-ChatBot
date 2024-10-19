@@ -2,3 +2,4 @@ __pycache__/
 .vscode/
 **/.DS_Store
 Dataset/14_graph.nt
+Dataset/graph.pkl

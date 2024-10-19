@@ -11,6 +11,9 @@ listen_freq = 2
 class Agent:
 
     def __init__(self, username, password):
+        # Initialize the SPARQL executor with the dataset path
+        self.sparql_executor = SPARQLQueryExecutor()
+
         self.username = username
         # Initialize the Speakeasy Python framework and login.
         self.speakeasy = Speakeasy(host=DEFAULT_HOST_URL, username=username, password=password)
@@ -49,18 +52,12 @@ class Agent:
                     # ADDED BY OMER
                     # Implement your agent here #
 
-                    query = message.message  # Assuming the user inputs a valid SPARQL query
-                    try:
-                        output = sparql_executor.execute_query(query)
-
-                        # Send the output back to the chat room
-                        if output:
-                            room.post_messages(str(output))
-                        else:
-                            room.post_messages("No results found.")
-
-                    except Exception as e:
-                        room.post_messages(f"Error executing query: {str(e)}")
+                    response = self.get_response(message.message)
+                    
+                    response = response.encode('utf-8')
+                    room.post_messages(response.decode('latin-1'))
+                    
+                    # room.post_messages(response)
                     
     
                     # ********************
@@ -90,6 +87,25 @@ class Agent:
 
             time.sleep(listen_freq)
 
+
+    def get_response(self, message: str) -> str:
+        """
+        Generate a response to a input message.
+
+        Args:
+            message (str): The input message.
+
+        Returns:
+            str: The response to the input message.
+        """
+
+        # Check if it is a SPARQL query
+        if not self.sparql_executor.is_sparql_query(message):
+            return "I can only process SPARQL queries. Please enter a SPARQL query only."
+        else:
+            return self.sparql_executor.process_sparql_query(message)
+
+    
     @staticmethod
     def get_time():
         return time.strftime("%H:%M:%S, %d-%m-%Y", time.localtime())
@@ -97,9 +113,6 @@ class Agent:
 
 if __name__ == '__main__':
     # ADDED BY OMER
-    # Initialize the SPARQL executor with the dataset path
-    sparql_executor = SPARQLQueryExecutor()
-
     demo_bot = Agent("red-dragon", "X0ynU0H9")
     demo_bot.listen()
 
