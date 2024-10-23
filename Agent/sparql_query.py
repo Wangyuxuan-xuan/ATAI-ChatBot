@@ -1,12 +1,20 @@
+from collections import defaultdict
 import pickle
 import os
-from rdflib import Graph
+from rdflib import Graph, Namespace
 from rdflib.plugins.sparql import prepareQuery
 
 class SPARQLQueryExecutor:
     KG_GRAPH_PATH = './../Dataset/14_graph.nt'
     CACHE_GRAPH_PATH = './../Dataset/graph.pkl'
     
+    # Namespaces
+    WD = Namespace('http://www.wikidata.org/entity/')
+    WDT = Namespace('http://www.wikidata.org/prop/direct/')
+    SCHEMA = Namespace('http://schema.org/')
+    DDIS = Namespace('http://ddis.ch/atai/')
+    RDFS = Namespace('http://www.w3.org/2000/01/rdf-schema#')
+
     def __init__(self, dataset_path= KG_GRAPH_PATH):
         self.graph = Graph()
         self._get_graph_cache(dataset_path, self.CACHE_GRAPH_PATH)
@@ -44,6 +52,82 @@ class SPARQLQueryExecutor:
         except Exception as e:
             print(f"Error executing query: {query}, the error message is {str(e)}")
             return f"Encountered error while executing query: {query}, the error message is {str(e)}"
+
+    def get_entities_info(self, e_movies, e_person):
+
+        res = []
+        for m in e_movies:
+            info = self.get_movie_info(m)
+            res.append(info)
+        
+        return res
+
+    def get_movie_info(self, movie_name):
+        query_template = '''
+            PREFIX ddis: <http://ddis.ch/atai/>
+            PREFIX wd: <http://www.wikidata.org/entity/>
+            PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+            PREFIX schema: <http://schema.org/>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            
+            SELECT ?movie ?movieLabel ?predicateLabel ?object ?objectLabel WHERE {{
+                # Find the movie entity based on an exact match for the label
+                ?movie rdfs:label "{0}"@en .
+                
+                # Retrieve all predicates and objects related to the movie entity
+                ?movie ?predicate ?object .
+
+                FILTER(?predicate IN (
+                      wdt:P31,   # instance of
+                      wdt:P57,   # director
+                      wdt:P162,  # producer
+                      wdt:P364,  # original language
+                      wdt:P272,  # production company
+                      wdt:P58,   # screenwriter
+                      wdt:P166,  # award received
+                      wdt:P2047, # duration
+                      wdt:P577 # release date
+                  ))
+
+                # Optionally retrieve labels for predicates and objects
+                OPTIONAL {{ ?predicate rdfs:label ?predicateLabel . FILTER(LANG(?predicateLabel) = "en") }}
+                OPTIONAL {{ ?object rdfs:label ?objectLabel . FILTER(LANG(?objectLabel) = "en") }}
+                OPTIONAL {{ ?movie rdfs:label ?movieLabel . FILTER(LANG(?movieLabel) = "en") }}
+            }}
+            ORDER BY ?movie
+        '''
+        
+        query = query_template.format(movie_name)
+        result = self.graph.query(query)
+        
+        film_info = self.format_sparql_result(result, movie_name)
+
+        return film_info
+        
+
+    def format_sparql_result(self, result, movie_name):
+        """
+        Convert the SPARQL query result into a dictionary with key-value pairs.
+        """
+        film_info = {}
+
+        if not result:
+            print("No information found for the movie:", movie_name)
+            return list()
+        
+        def add_value(entity_key, key, value):
+            if entity_key not in film_info:
+                film_info[entity_key] = defaultdict(list)
+            film_info[entity_key][key].append(value)
+
+        for row in result:
+            entity_key, movie_label, label, obj, value = row
+            if value is None:
+                add_value(str(entity_key.rsplit('/', 1)[-1]) + str(movie_label), str(label), str(obj))
+            add_value(str(entity_key.rsplit('/', 1)[-1]) + str(movie_label), str(label), str(value))
+
+        return film_info
+    
 
     def is_sparql_query(self, str : str) -> bool:
         """
@@ -104,8 +188,6 @@ class SPARQLQueryExecutor:
             with open(serialized_path, 'wb') as f:
                 pickle.dump(self.graph, f)
             print(f"Serialized graph saved to {serialized_path}")
-            # After cache 30-40 s
-            # Before cache 
 
 
     #endregion

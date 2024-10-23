@@ -3,7 +3,7 @@ from typing import List
 import time
 
 # ADDED BY OMER
-from question_processor import question_processor
+from Agent.response_generator import response_generator
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
 listen_freq = 2
@@ -12,7 +12,7 @@ class Agent:
 
     def __init__(self, username, password):
         # Initialize the SPARQL executor with the dataset path
-        self.question_processor = question_processor()
+        self.response_generator = response_generator()
 
         self.username = username
         # Initialize the Speakeasy Python framework and login.
@@ -99,7 +99,7 @@ class Agent:
         Returns:
             str: The response to the input message.
         """
-        return self.question_processor.get_response(message)
+        return self.response_generator.get_response(message)
         
 
     
@@ -109,7 +109,6 @@ class Agent:
 
 
 if __name__ == '__main__':
-    # ADDED BY OMER
     demo_bot = Agent("red-dragon", "X0ynU0H9")
     demo_bot.listen()
 
