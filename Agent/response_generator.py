@@ -1,14 +1,46 @@
+from enum import Enum
 from sparql_query import SPARQLQueryExecutor
 from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 import re
 import spacy
 import torch
+from rapidfuzz import process
+import pickle
+
+class Intent(Enum):
+    DIRECTOR = "director"
+    RELEASE_DATE = "release_date"
+    AWARD = "award"
+    PRODUCTION_COMPANY = "production_company"
+    LANGUAGE = "language"
+    SCREENWRITER = "screenwriter"
+    GENERAL_INFO = "general_info"
+
+SYNONYMS = {
+    "director": ["director", "directed", "directs", "direct"],
+    "release_date": ["release date", "released"],
+    "award": ["award", "oscar", "prize"],
+    "production_company": ["production company", "produced"],
+    "language": ["language", "original language"],
+    "screenwriter": ["screenwriter", "writer"]
+}
+
+SPARQL_RELATION_MAPPING = {
+    "director": "director",
+    "release_date": "publication date",
+    "award": "award received",
+    "production_company": "production company",
+    "language": "original language of film or TV show",
+    "screenwriter": "screenwriter"
+}
 
 class response_generator:
 
     bert_base_NER = "dslim/bert-base-NER"
     tuned_movie_bert_base_NER = "../Tune-BERT-NER/Tuned_BERT_NER_movie-60000"
 
+
+    
     def __init__(self):
         self.sparql_executor = SPARQLQueryExecutor()
         # Load the pre-trained BERT NER model from Hugging Face
@@ -20,22 +52,107 @@ class response_generator:
         # Load self tuned movie NER model
         
         self.tuned_movie_ner_pipeline = pipeline("ner", model=self.tuned_movie_bert_base_NER, tokenizer=self.tuned_movie_bert_base_NER, aggregation_strategy="simple", device="cuda")
+        self._init_Dataset()
+        
+    def _init_Dataset(self):
+        with open("../Dataset/MovieTitles", 'rb') as f:
+            movie_titles = pickle.load(f)
+        self.movie_title_set = set(movie_titles)
 
     def get_response(self, message: str) -> str:
 
         # Step 1: Perform Named Entity Recognition (NER) on the message
-        e_person = self.extract_person(message)
-        e_movies = self.extract_movie(message)
-        # Step 2: Determine intent and generate a SPARQL query if entities are recognized
+        ner_person = self.extract_person(message)
+        ner_movies = self.extract_movie(message)
+
+        e_movies = self.do_fuzz_match(ner_movies)
+
+        # Step 2: generate a SPARQL query if entities are recognized
         if e_movies :
             
-            info = self.sparql_executor.get_entities_info(e_movies, e_person)
+            movie_info = self.sparql_executor.get_entities_info(e_movies, ner_person)
 
-            if not info:
+            if not movie_info or len(movie_info) == 0:
                 # Default response if no valid entities or intent are found
                 return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
 
-            return str(info)
+            # Step 3: Determine the intent of the question
+            intent = self.determine_intent(message)
+
+            # Step 4: Extract the relevant information based on intent
+
+            response_parts = []
+            for m_info in movie_info:
+                response = self.generate_response(intent, m_info)
+                response_parts.append(response)
+            return " \n".join(response_parts)
+
+
+    def preprocess_message(self, message: str) -> str:
+        """
+        Preprocess the message to replace synonyms for more accurate intent recognition.
+        """
+        message = message.lower()
+        for key, synonyms in SYNONYMS.items():
+            for synonym in synonyms:
+                if synonym in message:
+                    message = message.replace(synonym, key)
+        return message
+
+    def determine_intent(self, message: str) -> Intent:
+        """
+        Determine the user's intent based on keywords in the message.
+        """
+        message = self.preprocess_message(message)
+
+        for intent_key in SYNONYMS.keys():
+            if intent_key in message:
+                return Intent(intent_key)
+        return Intent.GENERAL_INFO
+
+    def generate_response(self, intent: Intent, structured_info: dict) -> str:
+        """
+        Generate a response based on the user's intent and the structured SPARQL query result.
+        """
+
+        if not structured_info or len(structured_info) == 0:
+            # No data generated from SPARQL
+            return ""
+ 
+
+        response_parts = []
+        sparql_relation = SPARQL_RELATION_MAPPING.get(intent.value)
+
+
+        if len(structured_info) > 1:
+            self._handle_multiple_match(structured_info, response_parts, sparql_relation)
+        else:
+            for movie, details in structured_info.items():
+                movie_name = movie.split('--')[1]
+                if sparql_relation and sparql_relation in details:
+                    values = [v for v in details[sparql_relation] if v != "None"]
+                    if values:
+                        response_parts.append(f"The {intent.value.replace('_', ' ')} of {movie_name} is {', '.join(values)}.")
+                else:
+                    general_info = [f"{key}: {', '.join([v for v in values if v != 'None'])}" for key, values in details.items()]
+                    response_parts.append(f"Here is some information about {movie_name}: {'; '.join(general_info)}.")
+
+        return " \n".join(response_parts)
+
+    def _handle_multiple_match(self, structured_info, response_parts, sparql_relation):
+
+        response_parts.append(f"There are multiple instances of the entity you mentioned:")
+
+        for movie, details in structured_info.items():
+                movie_name = movie.split('--')[1]
+                instance_type = details.get("instance of", ["Unknown"])[0]
+                if sparql_relation and sparql_relation in details:
+                    values = [v for v in details[sparql_relation] if v != "None"]
+                    if values:
+                        response_parts.append(f"The {instance_type} of {movie_name} is released on {', '.join(values)}.")
+                else:
+                    general_info = [f"{key}: {', '.join([v for v in values if v != 'None'])}" for key, values in details.items()]
+                    response_parts.append(f"Here is some information about {movie_name} ({instance_type}): {'; '.join(general_info)}.")
 
     def extract_movie(self, sentence):
         ner_results = self.tuned_movie_ner_pipeline(sentence)
@@ -113,3 +230,19 @@ class response_generator:
 
         return p_entities
 
+    
+    def do_fuzz_match(self, ner_entites) -> list:
+        res = []
+        for e in ner_entites:
+            best_match = self.find_best_match(e)
+            if best_match:
+                res.append(best_match)
+        return res
+    
+    def find_best_match(self, ner_movie):
+
+        best_match, score, index = process.extractOne(ner_movie, self.movie_title_set)
+        # tuple containing the best matching movie title and a score
+        if score > 80:  # Adjust the threshold as needed
+            return best_match
+        return None

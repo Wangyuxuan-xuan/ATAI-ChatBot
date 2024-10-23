@@ -99,7 +99,13 @@ class Agent:
         Returns:
             str: The response to the input message.
         """
-        return self.response_generator.get_response(message)
+        try:
+            response = self.response_generator.get_response(message)
+        except Exception as e:
+            print(f"Error generating response: {str(e)}")
+            response = "I apologize, but I encountered an error while processing your request. Please try again later."
+
+        return response
         
 
     

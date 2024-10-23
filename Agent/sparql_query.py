@@ -123,8 +123,8 @@ class SPARQLQueryExecutor:
         for row in result:
             entity_key, movie_label, label, obj, value = row
             if value is None:
-                add_value(str(entity_key.rsplit('/', 1)[-1]) + str(movie_label), str(label), str(obj))
-            add_value(str(entity_key.rsplit('/', 1)[-1]) + str(movie_label), str(label), str(value))
+                add_value(str(entity_key.rsplit('/', 1)[-1]) + "--" + str(movie_label), str(label), str(obj))
+            add_value(str(entity_key.rsplit('/', 1)[-1]) + "--" + str(movie_label), str(label), str(value))
 
         return film_info
     
