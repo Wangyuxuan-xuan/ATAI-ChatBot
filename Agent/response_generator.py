@@ -1,11 +1,10 @@
 from enum import Enum
 from sparql_query import SPARQLQueryExecutor
-from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
-import re
-import spacy
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForTokenClassification, pipeline
 import torch
 from rapidfuzz import process
 import pickle
+from transformers import StoppingCriteria, StoppingCriteriaList
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -53,7 +52,17 @@ class response_generator:
         
         self.tuned_movie_ner_pipeline = pipeline("ner", model=self.tuned_movie_bert_base_NER, tokenizer=self.tuned_movie_bert_base_NER, aggregation_strategy="simple", device="cuda")
         self._init_Dataset()
-        
+
+        # Load the RedPajama-INCITE-Chat-3B-v1 model
+        model_name = "togethercomputer/RedPajama-INCITE-Chat-3B-v1"
+
+
+        # init
+        self.redpajama_tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.redpajama_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
+        self.redpajama_model = self.redpajama_model.to('cuda:0')
+        self.redpajama_model.generation_config.pad_token_id = self.redpajama_tokenizer.pad_token_id
+
     def _init_Dataset(self):
         with open("../Dataset/MovieTitles", 'rb') as f:
             movie_titles = pickle.load(f)
@@ -68,24 +77,87 @@ class response_generator:
         e_movies = self.do_fuzz_match(ner_movies)
 
         # Step 2: generate a SPARQL query if entities are recognized
-        if e_movies :
+
             
-            movie_info = self.sparql_executor.get_entities_info(e_movies, ner_person)
+        movie_info = self.sparql_executor.get_entities_info(e_movies, ner_person)
 
-            if not movie_info or len(movie_info) == 0:
-                # Default response if no valid entities or intent are found
-                return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
+        # if not movie_info or len(movie_info) == 0:
+        #     # Default response if no valid entities or intent are found
+        #     return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
 
-            # Step 3: Determine the intent of the question
-            intent = self.determine_intent(message)
+        # Step 3: Determine the intent of the question
+        intent = self.determine_intent(message)
 
-            # Step 4: Extract the relevant information based on intent
+        # Step 4: Extract the relevant information based on intent
 
-            response_parts = []
-            for m_info in movie_info:
-                response = self.generate_response(intent, m_info)
-                response_parts.append(response)
-            return " \n".join(response_parts)
+        response = self.generate_response_using_alpaca(movie_info, message)
+        return response
+
+    def generate_response_using_alpaca(self, movie_info: dict, user_query: str) -> str:
+        """
+        Generate a response using Alpaca-7B based on the user's intent and the query result.
+        """
+        # if not movie_info or len(movie_info) == 0:
+        #     return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
+
+        # Construct a prompt for the Alpaca model
+        
+
+        system_msg = '''
+        You are a specialized movie chatbot. 
+
+        <Requirements>
+        INPORTANT: Provide only 1 - 2 sentence as response, as short as possible
+        INPORTANT: Maximum 100 characters or 50 words
+        INPORTANT: Do not return JSON format
+        Do not return Requirements in your response
+        <Requirements>
+
+        Prioritize the provided information to formulate your response. 
+        Use your own knowledge about movies if you think <data> part does not provide enough knowledge
+        If <User query> is not related to general movie topiv, gently remind user to focus on movie-related topics.
+        '''
+
+        prompt_info = f"<system>: \"{system_msg}\"\n"
+        prompt_info += f"<User query>: \"{user_query}\"\n"
+        prompt_info += f"<data>: \"{movie_info}\"\n"
+
+        # Format the prompt with the movie information and user query
+        prompt = f"<human>: {prompt_info}\n<bot>: "
+
+        # Tokenize and prepare the input for the model
+        inputs = self.redpajama_tokenizer(prompt, return_tensors="pt").to("cuda")
+
+        input_length = inputs.input_ids.shape[1]
+
+            # Define stopping criteria to stop after generating the bot response
+        stop_words = ["<human>:"]
+        stop_words_ids = [
+            self.redpajama_tokenizer(stop_word, return_tensors="pt")["input_ids"].squeeze()
+            for stop_word in stop_words
+        ]
+        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
+
+        # Generate response with stopping criteria
+        outputs = self.redpajama_model.generate(
+            **inputs,
+            max_new_tokens=50,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.7,
+            top_k=50,
+            stopping_criteria=stopping_criteria,
+            return_dict_in_generate=True
+        )
+
+
+        token = outputs.sequences[0, input_length:]
+        output_str = self.redpajama_tokenizer.decode(token)
+
+        # Remove the stop word from the output
+        output_str = output_str.replace("<human>:", "").strip()
+        
+        return output_str
 
 
     def preprocess_message(self, message: str) -> str:
@@ -246,3 +318,17 @@ class response_generator:
         if score > 80:  # Adjust the threshold as needed
             return best_match
         return None
+
+
+
+
+class StoppingCriteriaSub(StoppingCriteria):
+    def __init__(self, stops=[], encounters=1):
+        super().__init__()
+        self.stops = [stop.to("cuda") for stop in stops]
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
+        for stop in self.stops:
+            if torch.all((stop == input_ids[0][-len(stop) :])).item():
+                return True
+        return False
