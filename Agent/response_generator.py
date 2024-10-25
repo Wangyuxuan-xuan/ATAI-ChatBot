@@ -1,8 +1,8 @@
 from enum import Enum
 from sparql_query import SPARQLQueryExecutor
-from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForTokenClassification, pipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModelForTokenClassification, BitsAndBytesConfig, pipeline
 import torch
-from rapidfuzz import process
+from thefuzz import fuzz, process
 import pickle
 from transformers import StoppingCriteria, StoppingCriteriaList
 
@@ -68,32 +68,54 @@ class response_generator:
             movie_titles = pickle.load(f)
         self.movie_title_set = set(movie_titles)
 
-    def get_response(self, message: str) -> str:
+    def filter_matched_movies(self, matched_movies:list, user_input):
+
+        def remove_non_alphanumeric(text):
+            return ''.join(filter(str.isalnum, text))
+
+        res = []
+        for m in matched_movies:
+            m_cleaned = remove_non_alphanumeric(m)
+            user_input_cleaned = remove_non_alphanumeric(user_input)
+            if m_cleaned.lower() in user_input_cleaned.lower():
+                res.append(m)
+
+        return res
+
+    
+# Remove non-alphanumeric characters from both strings
+
+    def get_response(self, user_query: str) -> str:
 
         # Step 1: Perform Named Entity Recognition (NER) on the message
-        ner_person = self.extract_person(message)
-        ner_movies = self.extract_movie(message)
+        ner_person = self.extract_person(user_query)
+        ner_movies_arr = self.extract_movie(user_query)
 
-        e_movies = self.do_fuzz_match(ner_movies)
+        matched_movies = []
+        for m in ner_movies_arr:
+            fuzzy_matched = self.find_top3_movie_match(m)
+            matched_movies.extend(fuzzy_matched)
 
+        matched_movies = self.filter_matched_movies(matched_movies, user_query)
+        print(f"matched movies: \n {matched_movies}")
         # Step 2: generate a SPARQL query if entities are recognized
 
             
-        movie_info = self.sparql_executor.get_entities_info(e_movies, ner_person)
+        movie_info = self.sparql_executor.get_entities_info(matched_movies, ner_person)
 
         # if not movie_info or len(movie_info) == 0:
         #     # Default response if no valid entities or intent are found
         #     return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
 
         # Step 3: Determine the intent of the question
-        intent = self.determine_intent(message)
+        intent = self.determine_intent(user_query)
 
         # Step 4: Extract the relevant information based on intent
 
-        response = self.generate_response_using_alpaca(movie_info, message)
+        response = self.generate_response_using_redpajama(movie_info, user_query)
         return response
 
-    def generate_response_using_alpaca(self, movie_info: dict, user_query: str) -> str:
+    def generate_response_using_redpajama(self, movie_info: dict, user_query: str) -> str:
         """
         Generate a response using Alpaca-7B based on the user's intent and the query result.
         """
@@ -107,15 +129,12 @@ class response_generator:
         You are a specialized movie chatbot. 
 
         <Requirements>
-        INPORTANT: Provide only 1 - 2 sentence as response, as short as possible
-        INPORTANT: Maximum 100 characters or 50 words
-        INPORTANT: Do not return JSON format
-        Do not return Requirements in your response
+        INPORTANT: Provide exactly 1 short sentence as response, as short as possible (within 10 words)
         <Requirements>
 
         Prioritize the provided information to formulate your response. 
         Use your own knowledge about movies if you think <data> part does not provide enough knowledge
-        If <User query> is not related to general movie topiv, gently remind user to focus on movie-related topics.
+        If <User query> is not related to general movie topic, remind user to focus on movie-related topics.
         '''
 
         prompt_info = f"<system>: \"{system_msg}\"\n"
@@ -158,6 +177,7 @@ class response_generator:
         output_str = output_str.replace("<human>:", "").strip()
         
         return output_str
+
 
 
     def preprocess_message(self, message: str) -> str:
@@ -302,24 +322,22 @@ class response_generator:
 
         return p_entities
 
-    
-    def do_fuzz_match(self, ner_entites) -> list:
+
+    def find_top3_movie_match(self, ner_movie):
+        
         res = []
-        for e in ner_entites:
-            best_match = self.find_best_match(e)
-            if best_match:
-                res.append(best_match)
+        # If no confident match was found, attempt secondary matching strategy
+        # Try extracting the top 3 matches to see if a more suitable candidate exists
+        extract_results = process.extract(ner_movie, self.movie_title_set, scorer=fuzz.ratio, limit=3)
+
+        for match, score in extract_results:
+            if not match:
+                continue
+
+            res.append(match)
+            print(f"{match}, {score}")
+
         return res
-    
-    def find_best_match(self, ner_movie):
-
-        best_match, score, index = process.extractOne(ner_movie, self.movie_title_set)
-        # tuple containing the best matching movie title and a score
-        if score > 80:  # Adjust the threshold as needed
-            return best_match
-        return None
-
-
 
 
 class StoppingCriteriaSub(StoppingCriteria):
