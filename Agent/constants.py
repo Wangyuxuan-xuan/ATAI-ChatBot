@@ -20,3 +20,31 @@ GREETING_SET = {
     "hello", "hello there", "hi there", "hi", "hi hi", "hey", "hi mate", "hey mate", "greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
     "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen"
 }
+
+# intermediate responses
+INITIAL_RESPONSES = [
+    "Let me search that information for you.",
+    "Checking the details for you.",
+    "Let me gather the information for you.",
+    "Let me find that out for you :)",
+    "Let me look it up.",
+    "I'm on it",
+    "Checking the data for you.",
+]
+
+PERIODIC_RESPONSES = [
+    "Still working on it, please hold on...",
+    "Give me a moment, I'm working on it...",
+    "I'm still gathering the information, one moment...",
+    "This is taking a bit longer, please be patient...",
+    "I'm on it, still fetching the details...",
+    "Please hold on, I'm processing your request...",
+    "It might take a few more seconds, please wait...",
+    "Still checking, almost there...",
+    "Working on it, thank you for your patience...",
+    "This will take just a little more time...",
+    "Hang tight, I'm finding the answer...",
+    "I'm getting the answer, please hold on...",
+    "Almost done, just another moment...",
+    "Hold on, I'm looking it up...",
+]

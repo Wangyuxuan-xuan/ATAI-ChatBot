@@ -51,7 +51,7 @@ class Agent:
                     # ******************** 
                     # Implement your agent here #
 
-                    response = self.get_response(message.message)
+                    response = self.get_response(message.message, room)
                     # print the response
                     print(f"response is : {response}")
 
@@ -89,17 +89,20 @@ class Agent:
             time.sleep(listen_freq)
 
 
-    def get_response(self, message: str) -> str:
+    def get_response(self, message: str, room) -> str:
         """
         Generate a response to a input message.
 
         Args:
             message (str): The input message.
+            room: The chatroom object.
 
         Returns:
             str: The response to the input message.
         """
+        
         try:
+            self.response_generator.set_room(room)
             response = self.response_generator.get_response(message)
         except Exception as e:
             print(f"Error generating response: {str(e)}")

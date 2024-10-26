@@ -1,11 +1,14 @@
 from enum import Enum
+import random
+import threading
+import time
 from sparql_query import SPARQLQueryExecutor
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import re
 from movie_entity_extractor import MovieEntityExtractor
 from transformers import StoppingCriteria, StoppingCriteriaList
-from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET
+from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -31,6 +34,17 @@ class response_generator:
         self.redpajama_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
         self.redpajama_model = self.redpajama_model.to('cuda:0')
         self.redpajama_model.generation_config.pad_token_id = self.redpajama_tokenizer.pad_token_id
+
+        self.room = None
+
+    def set_room(self, room):
+        """
+        Set the current chatroom.
+
+        Args:
+            room: The chatroom object.
+        """
+        self.room = room
 
     def get_response(self, user_query: str) -> str:
         # Preprocess the user query to detect greetings
@@ -69,7 +83,7 @@ class response_generator:
         <Requirements>
 
         Prioritize the provided information to formulate your response. 
-        Provide exactly 1 short sentence no matter what the inpus are, maximum 10 words.
+        Provide exactly 1 short sentence, maximum 10 words.
         '''
 
         prompt_info = f"<system>: \"{system_msg}\"\n"
@@ -92,15 +106,47 @@ class response_generator:
         ]
         stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
+        initial_message = random.choice(INITIAL_RESPONSES)
+        if self.room:
+            self.room.post_messages(initial_message)
+        else:
+            print(initial_message)
+
+        # Function to post periodic intermediate responses
+        def post_periodic_updates():
+            start_time = time.time()
+            while not hasattr(self, "generation_done"):
+                if time.time() - start_time > 8:
+                    periodic_message = random.choice(PERIODIC_RESPONSES)
+                    if self.room:
+                        self.room.post_messages(periodic_message)
+                    else:
+                        print(periodic_message)
+                    start_time = time.time()
+                    time.sleep(8)  # Post every 8 seconds
+
+        # Start timer and thread for periodic updates
+        update_thread = threading.Thread(target=post_periodic_updates)
+        update_thread.start()
+
         # Generate response with stopping criteria
-        outputs = self.redpajama_model.generate(
-            **inputs,
-            max_new_tokens=50,
-            do_sample=False,    # Disable sampling to make the output deterministic
-            temperature=1.0,    # No randomness in token selection
-            stopping_criteria=stopping_criteria,
-            return_dict_in_generate=True
-        )
+        outputs = None
+        try:
+            outputs = self.redpajama_model.generate(
+                **inputs,
+                max_new_tokens=50,
+                do_sample=False,    # Disable sampling to make the output deterministic
+                temperature=1.0,    # No randomness in token selection
+                stopping_criteria=stopping_criteria,
+                return_dict_in_generate=True
+            )
+        except torch.cuda.OutOfMemoryError:
+            torch.cuda.empty_cache()
+            time.sleep(1)
+        
+        # Mark generation as done
+        self.generation_done = True
+        update_thread.join()
 
         token = outputs.sequences[0, input_length:]
         output_str = self.redpajama_tokenizer.decode(token)
@@ -110,7 +156,7 @@ class response_generator:
 
     def _format_output_by_LLM(self, output) -> str:
         # Remove the stop word from the output
-        output_str = output_str.replace("<human>:", "").strip()
+        output_str = output.replace("<human>:", "").strip()
 
         if '.' in output_str:
             sentences = output_str.split('.')
