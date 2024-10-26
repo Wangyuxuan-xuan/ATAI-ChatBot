@@ -76,14 +76,13 @@ class response_generator:
         """
         
         system_msg = '''
-        You are a specialized movie chatbot. 
+        You are a specialized movie chatbot to answer user queries in 1 short sentence
 
         <Requirements>
         INPORTANT: Provide exactly 1 short sentence as response, as short as possible (within 10 words)
         <Requirements>
 
         Prioritize the provided information to formulate your response. 
-
         Provide exactly 1 short sentence no matter what the inpus are, maximum 10 words.
         '''
 
