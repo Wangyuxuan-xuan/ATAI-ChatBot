@@ -59,10 +59,12 @@ class response_generator:
         # Step 2: generate a SPARQL query beased on entities recognized
         movie_info = self.sparql_executor.get_movie_entities_info(matched_movies_list)
 
-        # Step 3: Determine the intent of the question
+        # Step 3: Determine the intent of the question (Not used)
         intent = self.determine_intent(user_query)
 
         # Step 4: Format output using language model
+
+        # response = self.generate_response_hardcoded(intent, movie_info)
         response = self.generate_response_using_redpajama(movie_info, user_query)
         return response
 
@@ -155,7 +157,14 @@ class response_generator:
                 return Intent(intent_key)
         return Intent.GENERAL_INFO
 
-    def generate_response_hardcoded(self, intent: Intent, structured_info: dict) -> str:
+    def generate_response_hardcoded(self, intent: Intent, movie_info: dict) -> str:
+        response_parts = []
+        for m_info in movie_info:
+            response = self.generate_response_hardcoded_for_movie(intent, m_info)
+            response_parts.append(response)
+        return " \n".join(response_parts)
+
+    def generate_response_hardcoded_for_movie(self, intent: Intent, structured_info: dict) -> str:
         """
         Generate a response based on the user's intent and the structured SPARQL query result.
         """
