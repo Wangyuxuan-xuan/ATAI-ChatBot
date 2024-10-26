@@ -82,7 +82,7 @@ class response_generator:
 
         Prioritize the provided information to formulate your response. 
 
-        The questions you recieved are factual questions, for yes or no questions just respond in a few words.
+        Provide exactly 1 short sentence no matter what the inpus are, maximum 10 words.
         '''
 
         prompt_info = f"<system>: \"{system_msg}\"\n"
