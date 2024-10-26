@@ -37,8 +37,6 @@ class response_generator:
 
     bert_base_NER = "dslim/bert-base-NER"
     tuned_movie_bert_base_NER = "../Tune-BERT-NER/Tuned_BERT_NER_movie-60000"
-
-
     
     def __init__(self):
         self.sparql_executor = SPARQLQueryExecutor()
@@ -56,8 +54,6 @@ class response_generator:
         # Load the RedPajama-INCITE-Chat-3B-v1 model
         model_name = "togethercomputer/RedPajama-INCITE-Chat-3B-v1"
 
-
-        # init
         self.redpajama_tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.redpajama_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
         self.redpajama_model = self.redpajama_model.to('cuda:0')
@@ -68,63 +64,32 @@ class response_generator:
             movie_titles = pickle.load(f)
         self.movie_title_set = set(movie_titles)
 
-    def filter_matched_movies(self, matched_movies:list, user_input):
-
-        def remove_non_alphanumeric(text):
-            return ''.join(filter(str.isalnum, text))
-
-        res = []
-        for m in matched_movies:
-            m_cleaned = remove_non_alphanumeric(m)
-            user_input_cleaned = remove_non_alphanumeric(user_input)
-            if m_cleaned.lower() in user_input_cleaned.lower():
-                res.append(m)
-
-        return res
-
-    
-# Remove non-alphanumeric characters from both strings
-
     def get_response(self, user_query: str) -> str:
 
         # Step 1: Perform Named Entity Recognition (NER) on the message
-        ner_person = self.extract_person(user_query)
-        ner_movies_arr = self.extract_movie(user_query)
 
-        matched_movies = []
-        for m in ner_movies_arr:
-            fuzzy_matched = self.find_top3_movie_match(m)
-            matched_movies.extend(fuzzy_matched)
+        matched_movies_list = self.get_matched_movies_list(user_query)
+        print(f"matched movies: \n {matched_movies_list}")
 
-        matched_movies = self.filter_matched_movies(matched_movies, user_query)
-        print(f"matched movies: \n {matched_movies}")
         # Step 2: generate a SPARQL query if entities are recognized
-
             
-        movie_info = self.sparql_executor.get_entities_info(matched_movies, ner_person)
-
-        # if not movie_info or len(movie_info) == 0:
-        #     # Default response if no valid entities or intent are found
-        #     return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
+        movie_info = self.sparql_executor.get_movie_entities_info(matched_movies_list)
 
         # Step 3: Determine the intent of the question
         intent = self.determine_intent(user_query)
 
-        # Step 4: Extract the relevant information based on intent
+        # Step 4: Format output using language model
 
         response = self.generate_response_using_redpajama(movie_info, user_query)
         return response
 
+    #region LLM response generation
+
     def generate_response_using_redpajama(self, movie_info: dict, user_query: str) -> str:
         """
-        Generate a response using Alpaca-7B based on the user's intent and the query result.
+        Generate a response using redpajama based on the user query and the query result.
         """
-        # if not movie_info or len(movie_info) == 0:
-        #     return "I'm not sure how to answer that. Could you please rephrase or provide more details?"
-
-        # Construct a prompt for the Alpaca model
         
-
         system_msg = '''
         You are a specialized movie chatbot. 
 
@@ -133,8 +98,8 @@ class response_generator:
         <Requirements>
 
         Prioritize the provided information to formulate your response. 
-        Use your own knowledge about movies if you think <data> part does not provide enough knowledge
-        If <User query> is not related to general movie topic, remind user to focus on movie-related topics.
+
+        The questions you recieved are factual questions, for yes or no questions just respond in a few words.
         '''
 
         prompt_info = f"<system>: \"{system_msg}\"\n"
@@ -161,10 +126,8 @@ class response_generator:
         outputs = self.redpajama_model.generate(
             **inputs,
             max_new_tokens=50,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.7,
-            top_k=50,
+            do_sample=False,    # Disable sampling to make the output deterministic
+            temperature=1.0,    # No randomness in token selection
             stopping_criteria=stopping_criteria,
             return_dict_in_generate=True
         )
@@ -175,10 +138,17 @@ class response_generator:
 
         # Remove the stop word from the output
         output_str = output_str.replace("<human>:", "").strip()
+
+        if '.' in output_str:
+            sentences = output_str.split('.')
+            if len(sentences) > 1 and not output_str.endswith('.'):
+                output_str = '. '.join(sentences[:-1]) + '.'
         
         return output_str
 
-
+    #endregion LLM response generation
+    
+    #region hard-coded response generation
 
     def preprocess_message(self, message: str) -> str:
         """
@@ -202,7 +172,7 @@ class response_generator:
                 return Intent(intent_key)
         return Intent.GENERAL_INFO
 
-    def generate_response(self, intent: Intent, structured_info: dict) -> str:
+    def generate_response_hardcoded(self, intent: Intent, structured_info: dict) -> str:
         """
         Generate a response based on the user's intent and the structured SPARQL query result.
         """
@@ -246,7 +216,22 @@ class response_generator:
                     general_info = [f"{key}: {', '.join([v for v in values if v != 'None'])}" for key, values in details.items()]
                     response_parts.append(f"Here is some information about {movie_name} ({instance_type}): {'; '.join(general_info)}.")
 
-    def extract_movie(self, sentence):
+    #endregion
+
+    #region NER
+
+    def get_matched_movies_list(self, user_query: str) -> list:
+        ner_movies_arr = self.extract_movie_using_self_tuned_NER(user_query)
+
+        matched_movies = []
+        for m in ner_movies_arr:
+            fuzzy_matched = self.find_top3_movie_match(m)
+            matched_movies.extend(fuzzy_matched)
+
+        matched_movies = self.filter_matched_movies(matched_movies, user_query)
+        return matched_movies
+
+    def extract_movie_using_self_tuned_NER(self, sentence):
         ner_results = self.tuned_movie_ner_pipeline(sentence)
 
         movie_list = []
@@ -275,6 +260,7 @@ class response_generator:
             movie_list = self._cleanup_movies_list(movie_list)
             
             return movie_list
+    
     def _cleanup_movies_list(self, movie_list) -> list:
         res = []
         # Clean up
@@ -283,46 +269,6 @@ class response_generator:
             res.append(movie)
         
         return res
-
-    def extract_person(self, sentence):
-        # Load pre-trained model and tokenizer
-
-        # Tokenize the sentence and obtain model outputs
-        inputs = self.bert_base_NER_tokenizer(sentence, return_tensors="pt", truncation=True, padding=True)
-        outputs = self.bert_base_NER_model(**inputs).logits
-        predictions = torch.argmax(outputs, dim=2)[0].tolist()
-
-        # Convert token and label IDs to strings
-        tokens = self.bert_base_NER_tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
-        labels = [self.bert_base_NER_model.config.id2label[label_id] for label_id in predictions]
-
-        # Collect persons and their labels
-        p_entities = []
-        entity = ""
-        current_label = None  # Keep track of the current entity label
-        for token, label in zip(tokens, labels):
-            if label.startswith("B") or label.startswith("I"):  # Beginning or Inside of an entity
-                if token.startswith("##"):  # Continuation of a word
-                    entity += token[2:]  # Remove subword prefix
-                else:  # New word
-                    entity += " " + token  # Add space before new word
-                current_label = label  # Update current entity label
-            elif entity:  # Outside of an entity, but entity string is non-empty
-                entity = entity.strip()  # Remove trailing space
-                if current_label == "I-PER":
-                    p_entities.append(entity)
-                entity = ""  # Reset entity string
-                current_label = None  # Reset current entity label
-
-        # If sentence ends with an entity, append it to the appropriate list
-        if entity:
-            entity = entity.strip()
-            if current_label == "I-PER":
-                p_entities.append(entity)
-
-        return p_entities
-
-
     def find_top3_movie_match(self, ner_movie):
         
         res = []
@@ -339,6 +285,21 @@ class response_generator:
 
         return res
 
+    def filter_matched_movies(self, matched_movies:list, user_input):
+
+        def remove_non_alphanumeric(text):
+            return ''.join(filter(str.isalnum, text))
+
+        res = []
+        for m in matched_movies:
+            m_cleaned = remove_non_alphanumeric(m)
+            user_input_cleaned = remove_non_alphanumeric(user_input)
+            if m_cleaned.lower() in user_input_cleaned.lower():
+                res.append(m)
+
+        return res
+   
+    #endregion NER
 
 class StoppingCriteriaSub(StoppingCriteria):
     def __init__(self, stops=[], encounters=1):

@@ -19,50 +19,20 @@ class SPARQLQueryExecutor:
         self.graph = Graph()
         self._get_graph_cache(dataset_path, self.CACHE_GRAPH_PATH)
     
-    def process_sparql_query(self, query) -> str:
+    #region SAPRQL factual questions
 
-        """
-        Check if the query is valid, then execute the query and return the results.
-
-        Returns:
-            str: The results of the SPARQL query or error message if the query is not valid or error executing the query.
-        
-        Exceptions:
-            Exception: If there is an error executing the query.
-        """
-
-        # Check if the query is valid
-        is_valid, result = self._is_sparql_query_valid(query)
-
-        if not is_valid:
-            return f"The SPARQL query is not valid: {result}"
-
-        query = result
-        
-        try:
-            output = self._execute_query(query)
-
-            # Send the output back to the chat room
-            if output:
-                return str(output)
-            else:
-                print(f"No results found for query: {query}")
-                return "No results found. Would you like to input another query?"
-
-        except Exception as e:
-            print(f"Error executing query: {query}, the error message is {str(e)}")
-            return f"Encountered error while executing query: {query}, the error message is {str(e)}"
-
-    def get_entities_info(self, e_movies, e_person):
+    def get_movie_entities_info(self, movie_list):
 
         res = []
-        for m in e_movies:
-            info = self.get_movie_info(m)
+        for m in movie_list:
+            info = self._get_movie_info(m)
             res.append(info)
         
+        if not res:
+            print(f"No movie info found for movie list {movie_list}")
         return res
 
-    def get_movie_info(self, movie_name):
+    def _get_movie_info(self, movie_name):
         query_template = '''
             PREFIX ddis: <http://ddis.ch/atai/>
             PREFIX wd: <http://www.wikidata.org/entity/>
@@ -104,7 +74,6 @@ class SPARQLQueryExecutor:
 
         return film_info
         
-
     def format_sparql_result(self, result, movie_name):
         """
         Convert the SPARQL query result into a dictionary with key-value pairs.
@@ -112,10 +81,10 @@ class SPARQLQueryExecutor:
         film_info = {}
 
         if not result:
-            print("No information found for the movie:", movie_name)
+            print(f"No information found for movie: {movie_name}")
             return list()
         
-        def add_value(entity_key, key, value):
+        def add_entity_key_value(entity_key, key, value):
             if entity_key not in film_info:
                 film_info[entity_key] = defaultdict(list)
             film_info[entity_key][key].append(value)
@@ -123,11 +92,47 @@ class SPARQLQueryExecutor:
         for row in result:
             entity_key, movie_label, label, obj, value = row
             if value is None:
-                add_value(str(entity_key.rsplit('/', 1)[-1]) + "--" + str(movie_label), str(label), str(obj))
-            add_value(str(entity_key.rsplit('/', 1)[-1]) + "--" + str(movie_label), str(label), str(value))
+                add_entity_key_value(str(entity_key.rsplit('/', 1)[-1]) + "--" + str(movie_label), str(label), str(obj))
+            add_entity_key_value(str(entity_key.rsplit('/', 1)[-1]) + "--" + str(movie_label), str(label), str(value))
 
         return film_info
     
+    #endregion SAPRQL factual questions
+
+    def process_sparql_query(self, query) -> str:
+
+        """
+        Check if the query is valid, then execute the query and return the results.
+
+        Returns:
+            str: The results of the SPARQL query or error message if the query is not valid or error executing the query.
+        
+        Exceptions:
+            Exception: If there is an error executing the query.
+        """
+
+        # Check if the query is valid
+        is_valid, result = self._is_sparql_query_valid(query)
+
+        if not is_valid:
+            return f"The SPARQL query is not valid: {result}"
+
+        query = result
+        
+        try:
+            output = self._execute_query(query)
+
+            # Send the output back to the chat room
+            if output:
+                return str(output)
+            else:
+                print(f"No results found for query: {query}")
+                return "No results found. Would you like to input another query?"
+
+        except Exception as e:
+            print(f"Error executing query: {query}, the error message is {str(e)}")
+            return f"Encountered error while executing query: {query}, the error message is {str(e)}"
+
 
     def is_sparql_query(self, str : str) -> bool:
         """
