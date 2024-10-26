@@ -24,5 +24,8 @@ if __name__ == '__main__':
         user_input = input("Enter your message (or 'exit' to exit): ")
         if user_input.lower() == 'exit':
             break
-        response = debugBot.get_response(user_input)
-        print("Response: ", response)
+        try:
+            response = debugBot.get_response(user_input)
+            print("Response: ", response)
+        except Exception as e:
+            print(f"An error occurred: {str(e)}")
