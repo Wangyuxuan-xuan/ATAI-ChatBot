@@ -5,6 +5,7 @@ import torch
 import re
 from movie_entity_extractor import MovieEntityExtractor
 from transformers import StoppingCriteria, StoppingCriteriaList
+from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -14,29 +15,6 @@ class Intent(Enum):
     LANGUAGE = "language"
     SCREENWRITER = "screenwriter"
     GENERAL_INFO = "general_info"
-
-SYNONYMS = {
-    "director": ["director", "directed", "directs", "direct"],
-    "release_date": ["release date", "released"],
-    "award": ["award", "oscar", "prize"],
-    "production_company": ["production company", "produced"],
-    "language": ["language", "original language"],
-    "screenwriter": ["screenwriter", "writer"]
-}
-
-SPARQL_RELATION_MAPPING = {
-    "director": "director",
-    "release_date": "publication date",
-    "award": "award received",
-    "production_company": "production company",
-    "language": "original language of film or TV show",
-    "screenwriter": "screenwriter"
-}
-
-GREETING_SET = {
-    "hello", "hello there", "hi there", "hi", "hi hi", "hey","hi mate", "hey mate","greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
-    "hey there", "hiya","morning", "evening", "afternoon", "hallo", "gut morgen"
-}
 
 class response_generator:
     
@@ -124,10 +102,13 @@ class response_generator:
             return_dict_in_generate=True
         )
 
-
         token = outputs.sequences[0, input_length:]
         output_str = self.redpajama_tokenizer.decode(token)
 
+        response = self._format_output_by_LLM(output_str)
+        return response
+
+    def _format_output_by_LLM(self, output) -> str:
         # Remove the stop word from the output
         output_str = output_str.replace("<human>:", "").strip()
 
@@ -138,9 +119,10 @@ class response_generator:
         
         return output_str
 
+
     #endregion LLM response generation
     
-    #region hard-coded response generation
+    #region Hard-coded response generation
 
     def preprocess_message(self, message: str) -> str:
         """
