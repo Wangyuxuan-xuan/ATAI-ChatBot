@@ -2,6 +2,7 @@ from enum import Enum
 from sparql_query import SPARQLQueryExecutor
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
+import re
 from movie_entity_extractor import MovieEntityExtractor
 from transformers import StoppingCriteria, StoppingCriteriaList
 
@@ -32,9 +33,12 @@ SPARQL_RELATION_MAPPING = {
     "screenwriter": "screenwriter"
 }
 
-class response_generator:
+GREETING_SET = {
+    "hello", "hello there", "hi there", "hi", "hi hi", "hey","hi mate", "hey mate","greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
+    "hey there", "hiya","morning", "evening", "afternoon", "hallo", "gut morgen"
+}
 
-    
+class response_generator:
     
     def __init__(self):
         self.sparql_executor = SPARQLQueryExecutor()
@@ -51,6 +55,10 @@ class response_generator:
         self.redpajama_model.generation_config.pad_token_id = self.redpajama_tokenizer.pad_token_id
 
     def get_response(self, user_query: str) -> str:
+        # Preprocess the user query to detect greetings
+        processed_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.lower().strip())
+        if processed_query in GREETING_SET:
+            return "Hello! I'm a movie chatbot, how can I help you today?"
 
         # Step 1: Perform NER
         matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
@@ -59,8 +67,8 @@ class response_generator:
         # Step 2: generate a SPARQL query beased on entities recognized
         movie_info = self.sparql_executor.get_movie_entities_info(matched_movies_list)
 
-        # Step 3: Determine the intent of the question (Not used)
-        intent = self.determine_intent(user_query)
+        # Step 3: Determine the intent of the question (If use hard-coded response generator)
+        # intent = self.determine_intent(user_query)
 
         # Step 4: Format output using language model
 
