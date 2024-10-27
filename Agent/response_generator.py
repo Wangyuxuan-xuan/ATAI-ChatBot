@@ -78,12 +78,10 @@ class response_generator:
         system_msg = '''
         You are a specialized movie chatbot to answer user queries in 1 short sentence
 
-        <Requirements>
-        INPORTANT: Provide exactly 1 short sentence as response, as short as possible (within 10 words)
-        <Requirements>
+        INPORTANT: Provide exactly 1 short sentence as response, as short as possible
 
         Prioritize the provided information to formulate your response. 
-        Provide exactly 1 short sentence, maximum 10 words.
+        Exactly 1 short sentence as response, maximum 10 words.
         '''
 
         prompt_info = f"<system>: \"{system_msg}\"\n"
@@ -138,7 +136,8 @@ class response_generator:
                 do_sample=False,    # Disable sampling to make the output deterministic
                 temperature=1.0,    # No randomness in token selection
                 stopping_criteria=stopping_criteria,
-                return_dict_in_generate=True
+                return_dict_in_generate=True,
+                use_cache=True
             )
         except torch.cuda.OutOfMemoryError:
             torch.cuda.empty_cache()
