@@ -75,7 +75,8 @@ class response_generator:
         """
         Generate a response using redpajama based on the user query and the query result.
         """
-        
+        self.generation_done = False
+
         system_msg = '''
         You are a specialized movie chatbot to answer user queries in 1 short sentence
 
@@ -114,7 +115,7 @@ class response_generator:
         # Function to post periodic intermediate responses
         def post_periodic_updates():
             start_time = time.time()
-            while not hasattr(self, "generation_done"):
+            while not self.generation_done:
                 if time.time() - start_time > 8:
                     periodic_message = random.choice(PERIODIC_RESPONSES)
                     if self.room:
