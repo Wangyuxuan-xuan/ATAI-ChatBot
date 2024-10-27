@@ -160,9 +160,12 @@ class response_generator:
 
         if '.' in output_str:
             sentences = output_str.split('.')
+            # Delete the unfinished sentence
             if len(sentences) > 1 and not output_str.endswith('.'):
                 output_str = '. '.join(sentences[:-1]) + '.'
-        
+            # Keep one respond sentence 
+            if len(sentences) > 1:
+                output_str = sentences[0] + '.'
         return output_str
 
 
