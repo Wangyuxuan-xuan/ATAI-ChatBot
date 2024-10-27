@@ -44,8 +44,7 @@ class Agent:
                     
                     # FOR INFORMING DEVELOPER ONLY
                     print(
-                        f"\t- Chatroom {room.room_id} "
-                        f"- new message #{message.ordinal}: '{message.message}' "
+                        f"- <new message> #{message.ordinal}: '{message.message}' "
                         f"- {self.get_time()}")
 
                     # ******************** 
@@ -53,8 +52,10 @@ class Agent:
 
                     response = self.get_response(message.message, room)
                     # print the response
-                    print(f"response is : {response}")
-
+                    print(
+                        f"- <response> #{message.ordinal}: '{response}' "
+                        f"- {self.get_time()}")
+                    
                     response = response.encode('utf-8')
                     room.post_messages(response.decode('latin-1'))
                     
