@@ -1,10 +1,11 @@
 from collections import defaultdict
 import pickle
 import os
-from rdflib import Graph, Namespace
+from rdflib import RDFS, Graph, Namespace
 from rdflib.plugins.sparql import prepareQuery
+from embedding_handler import EmbeddingHandler
 
-class SPARQLQueryExecutor:
+class GraphProcessor:
     KG_GRAPH_PATH = './../Dataset/14_graph.nt'
     CACHE_GRAPH_PATH = './../Dataset/graph.pkl'
     
@@ -17,11 +18,21 @@ class SPARQLQueryExecutor:
 
     def __init__(self, dataset_path= KG_GRAPH_PATH):
         self.graph = Graph()
+        
         self._get_graph_cache(dataset_path, self.CACHE_GRAPH_PATH)
+        self.ent2lbl = {ent: str(lbl) for ent, lbl in self.graph.subject_objects(RDFS.label)}
+        self.embedding_handler = EmbeddingHandler(graph=self.graph, ent2lbl=self.ent2lbl)
     
+    def get_info_by_embedding(self, movie_list, user_query):
+        res = []
+        for movie_name in movie_list:
+            embed_message = self.embedding_handler.get_info_from_embedding(movie_name, user_query)
+            res.append(embed_message)
+        return res
+
     #region SAPRQL factual questions
 
-    def get_movie_entities_info(self, movie_list):
+    def get_movie_entities_info_by_SPARQL(self, movie_list):
 
         res = []
         for m in movie_list:

@@ -1,9 +1,7 @@
 from speakeasypy import Speakeasy, Chatroom
 from typing import List
 import time
-
-# ADDED BY OMER
-from Agent.response_generator import response_generator
+from response_generator import response_generator
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
 listen_freq = 2

@@ -16,6 +16,21 @@ SPARQL_RELATION_MAPPING = {
     "screenwriter": "screenwriter"
 }
 
+EMBEDDING_REL_MAPPING = {
+    'director': ['directed', 'directs'],
+    'publication date': ['release', 'date', 'released', 'releases','release date', 'publication', 'launch', 'broadcast','launched'],
+    'executive producer': ['showrunner'],
+    'screenwriter': ['screenwriter', 'scriptwriter', 'writer', 'story'],
+    'film editor': ['editor'],
+    'box office': ['box', 'office', 'funding'],
+    'cost': ['budget', 'cost'],
+    'nominated for': ['nomination', 'award', 'finalist', 'shortlist', 'selection'],
+    'production company': ['company', 'company of production'],
+    'country of origin': ['origin', 'country'],
+    'cast member' :['actor', 'actress', 'cast'],
+    'genre': ['type', 'kind'],
+}
+
 GREETING_SET = {
     "hello", "hello there", "hi there", "hi", "hi hi", "hey", "hi mate", "hey mate", "greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
     "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen"

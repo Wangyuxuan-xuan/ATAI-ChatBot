@@ -1,4 +1,4 @@
-from Agent.response_generator import response_generator
+from response_generator import response_generator
 
 class debug:
 

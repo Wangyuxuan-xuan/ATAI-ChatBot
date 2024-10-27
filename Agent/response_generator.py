@@ -2,7 +2,7 @@ from enum import Enum
 import random
 import threading
 import time
-from sparql_query import SPARQLQueryExecutor
+from graph_processor import GraphProcessor
 from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
 import re
@@ -22,7 +22,7 @@ class Intent(Enum):
 class response_generator:
     
     def __init__(self):
-        self.sparql_executor = SPARQLQueryExecutor()
+        self.graph_processor = GraphProcessor()
 
         # Initialize MovieEntityExtractor
         self.movie_entity_extractor = MovieEntityExtractor()
@@ -57,13 +57,14 @@ class response_generator:
         print(f"matched movies: \n {matched_movies_list}")
 
         # Step 2: generate a SPARQL query beased on entities recognized
-        movie_info = self.sparql_executor.get_movie_entities_info(matched_movies_list)
+        movie_info = self.graph_processor.get_movie_entities_info_by_SPARQL(matched_movies_list)
 
-        # Step 3: Determine the intent of the question (If use hard-coded response generator)
-        # intent = self.determine_intent(user_query)
+        # Step 3: Use embedding if no information is found by sparql query
+        if not movie_info:
+            movie_info = self.graph_processor.get_info_by_embedding(matched_movies_list, user_query)
 
         # Step 4: Format output using language model
-
+        # intent = self.determine_intent(user_query)
         # response = self.generate_response_hardcoded(intent, movie_info)
         response = self.generate_response_using_redpajama(movie_info, user_query)
         return response
