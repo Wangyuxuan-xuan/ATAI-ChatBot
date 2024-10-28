@@ -4,7 +4,6 @@ from transformers import pipeline
 import torch
 import re
 from movie_entity_extractor import MovieEntityExtractor
-from transformers import StoppingCriteria
 from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES
 
 class Intent(Enum):
@@ -96,7 +95,7 @@ class response_generator:
         for message in json_output:
             if message.get('role') == 'assistant':
                 return message.get('content')
-        return "Sorry I had an issue :( could you please try again"
+        return "I apologize, but I encountered an error while processing your request. Please try again :"
 
     #endregion LLM response generation
     

@@ -1,6 +1,8 @@
+import random
 from speakeasypy import Speakeasy, Chatroom
 from typing import List
 import time
+from Agent.constants import INITIAL_RESPONSES
 from response_generator import response_generator
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
@@ -101,6 +103,9 @@ class Agent:
         """
         
         try:
+            initial_message = random.choice(INITIAL_RESPONSES)
+            if room:
+                room.post_messages(initial_message)
             response = self.response_generator.get_response(message)
         except Exception as e:
             print(f"Error generating response: {str(e)}")
