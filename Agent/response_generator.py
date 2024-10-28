@@ -1,13 +1,10 @@
 from enum import Enum
-import random
-import threading
-import time
 from graph_processor import GraphProcessor
-from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import pipeline
 import torch
 import re
 from movie_entity_extractor import MovieEntityExtractor
-from transformers import StoppingCriteria, StoppingCriteriaList
+from transformers import StoppingCriteria
 from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES
 
 class Intent(Enum):
@@ -27,24 +24,17 @@ class response_generator:
         # Initialize MovieEntityExtractor
         self.movie_entity_extractor = MovieEntityExtractor()
 
-        # Load the RedPajama-INCITE-Chat-3B-v1 model
-        model_name = "togethercomputer/RedPajama-INCITE-Chat-3B-v1"
+        # Initialize Llama-3.2-1B-Instruct
+        model_id = "meta-llama/Llama-3.2-1B-Instruct"
+        access_token = "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"
 
-        self.redpajama_tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.redpajama_model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
-        self.redpajama_model = self.redpajama_model.to('cuda:0')
-        self.redpajama_model.generation_config.pad_token_id = self.redpajama_tokenizer.pad_token_id
-
-        self.room = None
-
-    def set_room(self, room):
-        """
-        Set the current chatroom.
-
-        Args:
-            room: The chatroom object.
-        """
-        self.room = room
+        self.llama_pipe = pipeline(
+            "text-generation",
+            model=model_id,
+            torch_dtype=torch.bfloat16,
+            device_map="cuda:0",  
+            token =access_token  
+        )
 
     def get_response(self, user_query: str) -> str:
         # Preprocess the user query to detect greetings
@@ -66,109 +56,47 @@ class response_generator:
         # Step 4: Format output using language model
         # intent = self.determine_intent(user_query)
         # response = self.generate_response_hardcoded(intent, movie_info)
-        response = self.generate_response_using_redpajama(movie_info, user_query)
+        response = self.generate_response_using_llama(movie_info, user_query)
         return response
 
     #region LLM response generation
 
-    def generate_response_using_redpajama(self, movie_info: dict, user_query: str) -> str:
+    def generate_response_using_llama(self, movie_info: dict, user_query: str) -> str:
         """
         Generate a response using redpajama based on the user query and the query result.
         """
-        self.generation_done = False
 
         system_msg = '''
-        You are a specialized movie chatbot to answer user queries in 1 short sentence
-
-        INPORTANT: Provide exactly 1 short sentence as response, as short as possible
+        You are a specialized movie chatbot to answer user queries in 1 short sentence 
 
         Prioritize the provided information to formulate your response. 
-        Exactly 1 short sentence as response, maximum 10 words.
         '''
 
-        prompt_info = f"<system>: \"{system_msg}\"\n"
-        prompt_info += f"<User query>: \"{user_query}\"\n"
-        prompt_info += f"<data>: \"{movie_info}\"\n"
-
-        # Format the prompt with the movie information and user query
-        prompt = f"<human>: {prompt_info}\n<bot>: "
-
-        # Tokenize and prepare the input for the model
-        inputs = self.redpajama_tokenizer(prompt, return_tensors="pt").to("cuda")
-
-        input_length = inputs.input_ids.shape[1]
-
-            # Define stopping criteria to stop after generating the bot response
-        stop_words = ["<human>:"]
-        stop_words_ids = [
-            self.redpajama_tokenizer(stop_word, return_tensors="pt")["input_ids"].squeeze()
-            for stop_word in stop_words
+        prompt = [
+        {"role": "system", "content": f"{system_msg}"},
+        {"role": "user", "content": f"{user_query}"},
+        {"role": "data", "content": f"{movie_info}"}
         ]
-        stopping_criteria = StoppingCriteriaList([StoppingCriteriaSub(stops=stop_words_ids)])
 
-        initial_message = random.choice(INITIAL_RESPONSES)
-        if self.room:
-            self.room.post_messages(initial_message)
-        else:
-            print(initial_message)
+        # Generate the output
+        outputs = self.llama_pipe(
+            prompt,  
+            max_new_tokens=256,
+            do_sample=False,
+            temperature = 1,
+            top_p = 1
+        )
 
-        # Function to post periodic intermediate responses
-        def post_periodic_updates():
-            start_time = time.time()
-            while not self.generation_done:
-                if time.time() - start_time > 8:
-                    periodic_message = random.choice(PERIODIC_RESPONSES)
-                    if self.room:
-                        self.room.post_messages(periodic_message)
-                    else:
-                        print(periodic_message)
-                    start_time = time.time()
-                    time.sleep(8)  # Post every 8 seconds
-
-        # Start timer and thread for periodic updates
-        update_thread = threading.Thread(target=post_periodic_updates)
-        update_thread.start()
-
-        # Generate response with stopping criteria
-        outputs = None
-        try:
-            outputs = self.redpajama_model.generate(
-                **inputs,
-                max_new_tokens=50,
-                do_sample=False,    # Disable sampling to make the output deterministic
-                temperature=1.0,    # No randomness in token selection
-                stopping_criteria=stopping_criteria,
-                return_dict_in_generate=True,
-                use_cache=True
-            )
-        except torch.cuda.OutOfMemoryError:
-            torch.cuda.empty_cache()
-            time.sleep(1)
+        response = outputs[0]["generated_text"]
         
-        # Mark generation as done
-        self.generation_done = True
-        update_thread.join()
-
-        token = outputs.sequences[0, input_length:]
-        output_str = self.redpajama_tokenizer.decode(token)
-
-        response = self._format_output_by_LLM(output_str)
+        response = self.format_output_by_llama(response)
         return response
-
-    def _format_output_by_LLM(self, output) -> str:
-        # Remove the stop word from the output
-        output_str = output.replace("<human>:", "").strip()
-
-        if '.' in output_str:
-            sentences = output_str.split('.')
-            # Delete the unfinished sentence
-            if len(sentences) > 1 and not output_str.endswith('.'):
-                output_str = '. '.join(sentences[:-1]) + '.'
-            # Keep one respond sentence 
-            if len(sentences) > 1:
-                output_str = sentences[0] + '.'
-        return output_str
-
+    
+    def format_output_by_llama(self, json_output):
+        for message in json_output:
+            if message.get('role') == 'assistant':
+                return message.get('content')
+        return "Sorry I had an issue :( could you please try again"
 
     #endregion LLM response generation
     
@@ -248,14 +176,3 @@ class response_generator:
                     response_parts.append(f"Here is some information about {movie_name} ({instance_type}): {'; '.join(general_info)}.")
 
     #endregion
-
-class StoppingCriteriaSub(StoppingCriteria):
-    def __init__(self, stops=[], encounters=1):
-        super().__init__()
-        self.stops = [stop.to("cuda") for stop in stops]
-
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor):
-        for stop in self.stops:
-            if torch.all((stop == input_ids[0][-len(stop) :])).item():
-                return True
-        return False

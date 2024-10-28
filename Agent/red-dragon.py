@@ -101,7 +101,6 @@ class Agent:
         """
         
         try:
-            self.response_generator.set_room(room)
             response = self.response_generator.get_response(message)
         except Exception as e:
             print(f"Error generating response: {str(e)}")
