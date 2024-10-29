@@ -1,9 +1,9 @@
+import random
 from speakeasypy import Speakeasy, Chatroom
 from typing import List
 import time
-
-# ADDED BY OMER
-from sparql_query import SPARQLQueryExecutor
+from Agent.constants import INITIAL_RESPONSES
+from response_generator import response_generator
 
 DEFAULT_HOST_URL = 'https://speakeasy.ifi.uzh.ch'
 listen_freq = 2
@@ -12,7 +12,7 @@ class Agent:
 
     def __init__(self, username, password):
         # Initialize the SPARQL executor with the dataset path
-        self.sparql_executor = SPARQLQueryExecutor()
+        self.response_generator = response_generator()
 
         self.username = username
         # Initialize the Speakeasy Python framework and login.
@@ -44,15 +44,17 @@ class Agent:
                     
                     # FOR INFORMING DEVELOPER ONLY
                     print(
-                        f"\t- Chatroom {room.room_id} "
-                        f"- new message #{message.ordinal}: '{message.message}' "
+                        f"- <new message> #{message.ordinal}: '{message.message}' "
                         f"- {self.get_time()}")
 
                     # ******************** 
-                    # ADDED BY OMER
                     # Implement your agent here #
 
-                    response = self.get_response(message.message)
+                    response = self.get_response(message.message, room)
+                    # print the response
+                    print(
+                        f"- <response> #{message.ordinal}: '{response}' "
+                        f"- {self.get_time()}")
                     
                     response = response.encode('utf-8')
                     room.post_messages(response.decode('latin-1'))
@@ -88,22 +90,29 @@ class Agent:
             time.sleep(listen_freq)
 
 
-    def get_response(self, message: str) -> str:
+    def get_response(self, message: str, room) -> str:
         """
         Generate a response to a input message.
 
         Args:
             message (str): The input message.
+            room: The chatroom object.
 
         Returns:
             str: The response to the input message.
         """
+        
+        try:
+            initial_message = random.choice(INITIAL_RESPONSES)
+            if room:
+                room.post_messages(initial_message)
+            response = self.response_generator.get_response(message)
+        except Exception as e:
+            print(f"Error generating response: {str(e)}")
+            response = "I apologize, but I encountered an error while processing your request. Please try again :("
 
-        # Check if it is a SPARQL query
-        if not self.sparql_executor.is_sparql_query(message):
-            return "I can only process SPARQL queries. Please enter a SPARQL query only."
-        else:
-            return self.sparql_executor.process_sparql_query(message)
+        return response
+        
 
     
     @staticmethod
@@ -112,7 +121,6 @@ class Agent:
 
 
 if __name__ == '__main__':
-    # ADDED BY OMER
     demo_bot = Agent("red-dragon", "X0ynU0H9")
     demo_bot.listen()
 
