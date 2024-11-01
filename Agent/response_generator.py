@@ -47,9 +47,10 @@ class response_generator:
         print(f"matched movies: \n {matched_movies_list}")
 
         # Step 2: Random sample questions to use SPARQL or embedding (30% embedding, 70% SPARQL)
-        use_embedding = random.random() < 0.3
+        use_embedding = random.random() < 0.45
         if use_embedding:
-            # If use embedding, get embedding answer, if there's an answer, we return it, otherwise still use Sparql
+            # If use embedding, try to get embedding answer
+            # If there's an answer, we return it, otherwise we still use Sparql
             best_matched_movie = self.movie_entity_extractor.get_best_match_movie(user_query)
             embedding_answer = self.graph_processor.get_info_by_embedding(best_matched_movie, user_query)
             if embedding_answer:

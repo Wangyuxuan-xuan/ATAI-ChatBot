@@ -34,7 +34,11 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages(f'Hello! This is a welcome message from {room.my_alias}.')
+                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. I may answer your question using either SPARQL or embeddings, chosen randomly. 
+                                       When answer with embedding, I will use "Answer suggested by embedding" as a prefix.
+                                       Feel free to ask the same question twice to see if you get a different answer! :)
+
+                    ''')
                     room.initiated = True
  
                 # Retrieve messages from this chat room.
