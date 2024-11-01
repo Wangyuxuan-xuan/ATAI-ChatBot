@@ -23,12 +23,9 @@ class GraphProcessor:
         self.ent2lbl = {ent: str(lbl) for ent, lbl in self.graph.subject_objects(RDFS.label)}
         self.embedding_handler = EmbeddingHandler(graph=self.graph, ent2lbl=self.ent2lbl)
     
-    def get_info_by_embedding(self, movie_list, user_query):
-        res = []
-        for movie_name in movie_list:
-            embed_message = self.embedding_handler.get_info_from_embedding(movie_name, user_query)
-            res.append(embed_message)
-        return res
+    def get_info_by_embedding(self, best_matched_movie, user_query):
+        embed_message = self.embedding_handler.get_info_from_embedding(best_matched_movie, user_query)
+        return embed_message
 
     #region SAPRQL factual questions
 

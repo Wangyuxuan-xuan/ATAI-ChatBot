@@ -53,6 +53,7 @@ class EmbeddingHandler:
             print("No movie name provided to perform embedding lookup.")
             return ""
 
+        print(f"------ Embedding search ------")
         # Find the entity URI corresponding to the movie name label
         if movie_name not in self.lbl2ent:
             print(f"The movie '{movie_name}' was not found in the embedding space.")
@@ -92,7 +93,7 @@ class EmbeddingHandler:
         best_match_label = self.ent2lbl.get(best_match_entity, str(best_match_entity))
 
         # Return the result
-        response = f"Answer suggested by embedding: The {relation_label.replace('_', ' ')} of '{movie_name}' is '{best_match_label}'."
+        response = f"Answer suggested by embedding: The {relation_label.replace('_', ' ')} of {movie_name} is {best_match_label}."
         return response
     
     def _get_embedding_relation(self, message: str) -> Relation:
