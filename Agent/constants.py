@@ -34,7 +34,7 @@ EMBEDDING_REL_MAPPING = {
 
 GREETING_SET = {
     "hello", "hello there", "hi there", "hi", "hi hi", "hey", "hi mate", "hey mate", "greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
-    "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen", "who are you", "who are u"
+    "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen", "who are you", "who are u", "how are you", "how are u"
 }
 
 # intermediate responses
@@ -46,7 +46,15 @@ INITIAL_RESPONSES = [
     "Let me look it up.",
     "I'm on it",
     "Checking the data for you.",
+    "I'll look into that right away :)",
+    "One moment while I check that.",
+    "Let me confirm that for you.",
+    "I'll dig up the details for you.",
+    "On it, just a sec!",
+    "Hang tight, I'll get that info.",
+    "Let me get that for you.",
 ]
+
 
 PERIODIC_RESPONSES = [
     "Still working on it, please hold on...",

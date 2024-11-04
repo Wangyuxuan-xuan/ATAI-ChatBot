@@ -24,8 +24,11 @@ class GraphProcessor:
         self.embedding_handler = EmbeddingHandler(graph=self.graph, ent2lbl=self.ent2lbl)
     
     def get_info_by_embedding(self, best_matched_movie, user_query):
-        embed_message = self.embedding_handler.get_info_from_embedding(best_matched_movie, user_query)
-        return embed_message
+        try:
+            embed_message = self.embedding_handler.get_info_from_embedding(best_matched_movie, user_query)
+            return embed_message
+        except:
+            return ""
 
     #region SAPRQL factual questions
 
