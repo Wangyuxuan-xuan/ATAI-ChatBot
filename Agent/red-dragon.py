@@ -34,10 +34,8 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. I may answer your question using either SPARQL or embeddings, chosen randomly. 
-                                       When answer with embedding, I will use "Answer suggested by embedding" as a prefix.
-                                       Feel free to ask the same question twice to see if you get a different answer! :)
-
+                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. I may answer your question using either SPARQL or embeddings, chosen randomly (They might have different answer). 
+                                       Feel free to ask the same question twice to see if you get the answer from embedding or SPARQL :)
                     ''')
                     room.initiated = True
  
@@ -61,7 +59,7 @@ class Agent:
                         f"- {self.get_time()}")
                     
                     response = response.encode('utf-8')
-                    room.post_messages(response.decode('latin-1'))
+                    room.post_messages(response.decode('utf-8'))
                     
                     # room.post_messages(response)
                     

@@ -47,7 +47,6 @@ class MovieEntityExtractor:
         ner_results = self.tuned_movie_ner_pipeline(sentence)
 
         movie_list = []
-        print(f"\nInput  Sentence: \"{sentence}\"")
 
         if not ner_results:
             print("No entities found.")
@@ -112,7 +111,7 @@ class MovieEntityExtractor:
             res.append(match)
             print(f"{match}, {score}")
 
-        return res[0]
+        return res[0] if res else []
 
     def match_fuzzy_searched_movie_with_user_query(self, matched_movies:list, user_input):
 
