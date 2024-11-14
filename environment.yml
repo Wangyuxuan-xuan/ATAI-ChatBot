@@ -1,22 +1,23 @@
 name: ATAIChatbot
 channels:
+  - nvidia
+  - pytorch
+  - conda-forge
   - defaults
 dependencies:
-  - python=3.12
+  - python=3.10
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cudatoolkit=11.8
+  - transformers
+  - thefuzz
+  - huggingface_hub
+  - rdflib
+  - scikit-learn
+  - pillow
+  - numpy
+  - accelerate
   - pip
   - pip:
-      - isodate==0.6.1
-      - networkx==3.3
-      - numpy==2.1.2
-      - packaging==24.1
-      - pandas==2.2.3
-      - plotly==5.24.1
-      - pyparsing==3.1.4
-      - python-dateutil==2.9.0.post0
-      - pytz==2024.2
-      - rdflib==7.0.0
-      - six==1.16.0
       - Env/speakeasypy-1.0.0-py3-none-any.whl
-      - tenacity==9.0.0
-      - tzdata==2024.2
-      - urllib3==1.26.20
