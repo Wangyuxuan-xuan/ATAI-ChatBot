@@ -34,7 +34,9 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages(f'Hello! This is a welcome message from {room.my_alias}.')
+                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. I may answer your question using either SPARQL or embeddings, chosen randomly (They might have different answer). 
+                                       Feel free to ask the same question twice to see if you get the answer from embedding or SPARQL :)
+                    ''')
                     room.initiated = True
  
                 # Retrieve messages from this chat room.
@@ -44,7 +46,7 @@ class Agent:
                     
                     # FOR INFORMING DEVELOPER ONLY
                     print(
-                        f"- <new message> #{message.ordinal}: '{message.message}' "
+                        f"- <New Message> #{message.ordinal}: '{message.message}' "
                         f"- {self.get_time()}")
 
                     # ******************** 
@@ -53,11 +55,11 @@ class Agent:
                     response = self.get_response(message.message, room)
                     # print the response
                     print(
-                        f"- <response> #{message.ordinal}: '{response}' "
+                        f"- <Response> #{message.ordinal}: '{response}' "
                         f"- {self.get_time()}")
                     
                     response = response.encode('utf-8')
-                    room.post_messages(response.decode('latin-1'))
+                    room.post_messages(response.decode('utf-8'))
                     
                     # room.post_messages(response)
                     

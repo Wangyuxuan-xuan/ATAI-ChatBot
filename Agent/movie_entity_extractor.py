@@ -30,14 +30,23 @@ class MovieEntityExtractor:
             fuzzy_matched = self.find_top3_movie_match(m)
             matched_movies.extend(fuzzy_matched)
 
-        matched_movies = self.filter_matched_movies(matched_movies, user_query)
+        matched_movies = self.match_fuzzy_searched_movie_with_user_query(matched_movies, user_query)
+
         return matched_movies
+    
+    def get_best_match_movie(self, user_query: str) -> str:
+
+        matched_movies_list = self.get_matched_movies_list(user_query) 
+        top_matched_movie = self.filter_top_matched_movie(matched_movies_list, user_query)
+
+        print(f"final_matched_movie : {top_matched_movie}" )
+
+        return top_matched_movie
 
     def extract_movie_using_self_tuned_NER(self, sentence):
         ner_results = self.tuned_movie_ner_pipeline(sentence)
 
         movie_list = []
-        print(f"\nInput  Sentence: \"{sentence}\"")
 
         if not ner_results:
             print("No entities found.")
@@ -88,7 +97,23 @@ class MovieEntityExtractor:
 
         return res
 
-    def filter_matched_movies(self, matched_movies:list, user_input):
+    def filter_top_matched_movie(self, extracted_movie_list, user_query) -> str:
+        
+        print("\n ---filter_top_matched_movie---")
+        res = []
+
+        extract_results = process.extract(user_query, extracted_movie_list, scorer=fuzz.ratio, limit=2)
+
+        for match, score in extract_results:
+            if not match:
+                continue
+
+            res.append(match)
+            print(f"{match}, {score}")
+
+        return res[0] if res else []
+
+    def match_fuzzy_searched_movie_with_user_query(self, matched_movies:list, user_input):
 
         def remove_non_alphanumeric(text):
             return ''.join(filter(str.isalnum, text))

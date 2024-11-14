@@ -26,6 +26,6 @@ if __name__ == '__main__':
             break
         try:
             response = debugBot.get_response(user_input)
-            print("Response: ", response)
+            print("- <Response> #: ", response)
         except Exception as e:
             print(f"An error occurred: {str(e)}")

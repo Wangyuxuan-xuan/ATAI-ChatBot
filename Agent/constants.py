@@ -17,23 +17,24 @@ SPARQL_RELATION_MAPPING = {
 }
 
 EMBEDDING_REL_MAPPING = {
-    'director': ['directed', 'directs'],
+    "director": ["director", "directed", "directs", "direct"],
+    "award": ["award", "oscar", "prize"],
     'publication date': ['release', 'date', 'released', 'releases','release date', 'publication', 'launch', 'broadcast','launched'],
-    'executive producer': ['showrunner'],
+    'executive producer': ['showrunner', 'executive producer'],
     'screenwriter': ['screenwriter', 'scriptwriter', 'writer', 'story'],
-    'film editor': ['editor'],
-    'box office': ['box', 'office', 'funding'],
+    'film editor': ['editor', 'film editor'],
+    'box office': ['box', 'office', 'funding', 'box office'],
     'cost': ['budget', 'cost'],
-    'nominated for': ['nomination', 'award', 'finalist', 'shortlist', 'selection'],
-    'production company': ['company', 'company of production'],
-    'country of origin': ['origin', 'country'],
-    'cast member' :['actor', 'actress', 'cast'],
-    'genre': ['type', 'kind'],
+    'nominated for': ['nomination', 'award', 'finalist', 'shortlist', 'selection', 'nominated for'],
+    'production company': ['company', 'company of production', "produced", 'production company'],
+    'country of origin': ['origin', 'country', 'country of origin'],
+    'cast member' :['actor', 'actress', 'cast', 'cast member'],
+    'genre': ['type', 'kind', 'genre'],
 }
 
 GREETING_SET = {
     "hello", "hello there", "hi there", "hi", "hi hi", "hey", "hi mate", "hey mate", "greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
-    "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen"
+    "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen", "who are you", "who are u", "how are you", "how are u"
 }
 
 # intermediate responses
@@ -45,7 +46,15 @@ INITIAL_RESPONSES = [
     "Let me look it up.",
     "I'm on it",
     "Checking the data for you.",
+    "I'll look into that right away :)",
+    "One moment while I check that.",
+    "Let me confirm that for you.",
+    "I'll dig up the details for you.",
+    "On it, just a sec!",
+    "Hang tight, I'll get that info.",
+    "Let me get that for you.",
 ]
+
 
 PERIODIC_RESPONSES = [
     "Still working on it, please hold on...",

@@ -3,6 +3,7 @@ from graph_processor import GraphProcessor
 from transformers import pipeline
 import torch
 import re
+import random
 from movie_entity_extractor import MovieEntityExtractor
 from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES
 
@@ -45,12 +46,18 @@ class response_generator:
         matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
         print(f"matched movies: \n {matched_movies_list}")
 
-        # Step 2: generate a SPARQL query beased on entities recognized
+        # Step 2: Random sample questions to use SPARQL or embedding (40% embedding, 60% SPARQL)
+        use_embedding = random.random() < 0.4
+        if use_embedding:
+            # If use embedding, try to get embedding answer
+            # If there's an answer, we return it, otherwise we still use Sparql
+            best_matched_movie = self.movie_entity_extractor.get_best_match_movie(user_query)
+            embedding_answer = self.graph_processor.get_info_by_embedding(best_matched_movie, user_query)
+            if embedding_answer:
+                return embedding_answer
+        
+        # Step 3: If use SPARQL, generate a SPARQL query beased on entities recognized
         movie_info = self.graph_processor.get_movie_entities_info_by_SPARQL(matched_movies_list)
-
-        # Step 3: Use embedding if no information is found by sparql query
-        if not movie_info:
-            movie_info = self.graph_processor.get_info_by_embedding(matched_movies_list, user_query)
 
         # Step 4: Format output using language model
         # intent = self.determine_intent(user_query)
@@ -60,15 +67,16 @@ class response_generator:
 
     #region LLM response generation
 
-    def generate_response_using_llama(self, movie_info: dict, user_query: str) -> str:
-        """
-        Generate a response using redpajama based on the user query and the query result.
-        """
-
+    def _generate_prompt(self, movie_info: dict, user_query: str) -> str:
+        
         system_msg = '''
-        You are a specialized movie chatbot to answer user queries in 1 short sentence 
+        You are a specialized movie chatbot to answer user queries in 1 short sentence, maxmum 10 words.
 
-        Prioritize the provided information to formulate your response. 
+        Prioritize the provided data to formulate your response. 
+
+        Kindly remind the user to focus on movie related questions if the question is not movie related
+
+        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer plot questions.
         '''
 
         prompt = [
@@ -76,6 +84,15 @@ class response_generator:
         {"role": "user", "content": f"{user_query}"},
         {"role": "data", "content": f"{movie_info}"}
         ]
+
+        return prompt
+    
+    def generate_response_using_llama(self, movie_info: dict, user_query: str) -> str:
+        """
+        Generate a response using llama based on the user query and the query result.
+        """
+
+        prompt = self._generate_prompt(movie_info, user_query)
 
         # Generate the output
         outputs = self.llama_pipe(
