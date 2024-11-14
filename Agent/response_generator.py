@@ -70,9 +70,13 @@ class response_generator:
     def _generate_prompt(self, movie_info: dict, user_query: str) -> str:
         
         system_msg = '''
-        You are a specialized movie chatbot to answer user queries in 1 short sentence 
+        You are a specialized movie chatbot to answer user queries in 1 short sentence, maxmum 10 words.
 
-        Prioritize the provided data to formulate your response. If data is not provided, use your own knowledge.
+        Prioritize the provided data to formulate your response. 
+
+        Kindly remind the user to focus on movie related questions if the question is not movie related
+
+        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer plot questions.
         '''
 
         prompt = [
@@ -85,7 +89,7 @@ class response_generator:
     
     def generate_response_using_llama(self, movie_info: dict, user_query: str) -> str:
         """
-        Generate a response using redpajama based on the user query and the query result.
+        Generate a response using llama based on the user query and the query result.
         """
 
         prompt = self._generate_prompt(movie_info, user_query)
