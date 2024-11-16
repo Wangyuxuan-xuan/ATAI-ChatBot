@@ -53,13 +53,13 @@ class response_generator:
         matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
         print(f"matched movies: \n {matched_movies_list}")
 
-        response = self.answer_recommendation_questions(user_query, matched_movies_list)
+        response = self._answer_recommendation_questions(user_query, matched_movies_list)
 
         # factual_res = self.answer_factual_questions(user_query, matched_movies_list)
         
         return response
 
-    def answer_factual_questions(self, user_query: str, matched_movies_list):
+    def _answer_factual_questions(self, user_query: str, matched_movies_list):
         # Step 2: Random sample questions to use SPARQL or embedding (40% embedding, 60% SPARQL)
         use_embedding = random.random() < 0.4
         if use_embedding:
@@ -75,18 +75,18 @@ class response_generator:
 
         # Step 4: Format output using language model
         prompt = self._generate_prompt_for_factual_questions(movie_info, user_query)
-        response = self.generate_response_using_llama(prompt)
+        response = self._generate_response_using_llama(prompt)
 
         return response
 
-    def answer_recommendation_questions(self, user_query:str, matched_movies_list):
+    def _answer_recommendation_questions(self, user_query:str, matched_movies_list):
         features, recommend_movies = self.recommendation_handler.recommend_movies(matched_movies_list)
 
         print(f"features: {features}")
         print(f"recommend_movies: {recommend_movies}")
 
         prompt = self._generate_prompt_for_recommendation(user_query, features, recommend_movies)
-        response = self.generate_response_using_llama(prompt)
+        response = self._generate_response_using_llama(prompt)
 
         if features:
             feature_str = ", ".join(features)
@@ -148,7 +148,7 @@ class response_generator:
 
         return prompt
     
-    def generate_response_using_llama(self, prompt) -> str:
+    def _generate_response_using_llama(self, prompt) -> str:
         """
         Generate a response using llama based on the user query and the query result.
         """
