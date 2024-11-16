@@ -45,7 +45,7 @@ class EmbeddingHandler:
         self.lbl2rel = {lbl: ent for ent, lbl in self.rel2lbl.items()}
 
 
-    def get_info_from_embedding(self, movie_name, user_query) -> str:
+    def get_answer_from_embedding(self, movie_name, user_query) -> str:
         """
         Use embeddings to retrieve the information related to a movie.
         """
@@ -95,6 +95,85 @@ class EmbeddingHandler:
         # Return the result
         response = f"Answer suggested by embedding: The {relation_label.replace('_', ' ')} of {movie_name} is {best_match_label}."
         return response
+
+
+    def get_similar_movies(self, movie_names: list, top_k: int = 10) -> list:
+        """
+        Retrieve the top K movies similar to the average embedding of provided movie names.
+        Args:
+            movie_names (list): List of movie names for which to find similar movies.
+            top_k (int): Number of similar movies to retrieve.
+        Returns:
+            list: A list of movie names that are closest to the average embedding.
+        """
+        movie_embeds = []
+
+        # Retrieve the embedding for each movie
+        for movie_name in movie_names:
+            if movie_name not in self.lbl2ent:
+                print(f"The movie '{movie_name}' is not found in the embedding space.")
+                continue
+            movie_uri = self.lbl2ent[movie_name]
+            if movie_uri not in self.ent2id:
+                print(f"The movie '{movie_name}' does not have an associated embedding.")
+                continue
+            movie_id = self.ent2id[movie_uri]
+            movie_embeds.append(self.ent_embeds[movie_id])
+
+        # If no valid embeddings are found, return an empty list
+        if not movie_embeds:
+            return []
+
+        # Calculate the mean embedding
+        mean_embedding = np.mean(movie_embeds, axis=0).reshape(1, -1)
+
+        # Calculate distances to all other movies based on the mean embedding
+        dist = pairwise_distances(mean_embedding, self.ent_embeds).flatten()
+        similar_movie_ids = dist.argsort()[:top_k]  # Get the top_k closest movies
+
+        # Map the closest IDs back to movie names
+        similar_movies = [self.ent2lbl[self.id2ent[idx]] for idx in similar_movie_ids if idx in self.id2ent]
+        
+        return similar_movies
+    
+
+    def get_feature_embeddings(self, movie_names: list, relation_label: str = "genre") -> list:
+        """
+        Retrieve embeddings of a specified feature (e.g., genre) for given movies.
+        Args:
+            movie_names (list): List of movie names.
+            feature (str): Feature to retrieve embeddings for.
+        Returns:
+            list: A list of embeddings for the specified feature across the movies.
+        """
+        relation_embeddings = []
+
+        # Ensure the feature is valid
+        relation_uri = self.lbl2rel[relation_label]
+
+        if relation_uri not in self.rel2id:
+            print(f"The requested relation '{relation_label}' was not found in the embedding space.")
+            return ""
+
+        # Retrieve the relation embedding
+        relation_id = self.rel2id[relation_uri]
+        relation_embed = self.rel_embeds[relation_id].reshape(1, -1)
+
+        for movie_name in movie_names:
+            if movie_name not in self.lbl2ent:
+                continue
+
+            movie_uri = self.lbl2ent[movie_name]
+            if movie_uri not in self.ent2id:
+                continue
+
+            movie_id = self.ent2id[movie_uri]
+            movie_embed = self.ent_embeds[movie_id].reshape(1, -1)
+            combined_embedding = movie_embed + relation_embed
+            relation_embeddings.append(combined_embedding.flatten())
+
+        return relation_embeddings
+
     
     def _get_embedding_relation(self, message: str) -> Relation:
         """

@@ -1,4 +1,5 @@
 from enum import Enum
+from recommendation_handler import RecommendationHandler
 from graph_processor import GraphProcessor
 from transformers import pipeline
 import torch
@@ -16,6 +17,10 @@ class Intent(Enum):
     SCREENWRITER = "screenwriter"
     GENERAL_INFO = "general_info"
 
+class GenerationMode(Enum):
+    FACTUAL = "factual"
+    RECOMMENDATION = "recommendation"
+
 class response_generator:
     
     def __init__(self):
@@ -23,6 +28,8 @@ class response_generator:
 
         # Initialize MovieEntityExtractor
         self.movie_entity_extractor = MovieEntityExtractor()
+
+        self.recommendation_handler = RecommendationHandler(self.graph_processor)
 
         # Initialize Llama-3.2-1B-Instruct
         model_id = "meta-llama/Llama-3.2-1B-Instruct"
@@ -46,13 +53,20 @@ class response_generator:
         matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
         print(f"matched movies: \n {matched_movies_list}")
 
+        response = self.answer_recommendation_questions(user_query, matched_movies_list)
+
+        # factual_res = self.answer_factual_questions(user_query, matched_movies_list)
+        
+        return response
+
+    def answer_factual_questions(self, user_query: str, matched_movies_list):
         # Step 2: Random sample questions to use SPARQL or embedding (40% embedding, 60% SPARQL)
         use_embedding = random.random() < 0.4
         if use_embedding:
             # If use embedding, try to get embedding answer
             # If there's an answer, we return it, otherwise we still use Sparql
             best_matched_movie = self.movie_entity_extractor.get_best_match_movie(user_query)
-            embedding_answer = self.graph_processor.get_info_by_embedding(best_matched_movie, user_query)
+            embedding_answer = self.graph_processor.get_answer_by_embedding(best_matched_movie, user_query)
             if embedding_answer:
                 return embedding_answer
         
@@ -60,14 +74,30 @@ class response_generator:
         movie_info = self.graph_processor.get_movie_entities_info_by_SPARQL(matched_movies_list)
 
         # Step 4: Format output using language model
-        # intent = self.determine_intent(user_query)
-        # response = self.generate_response_hardcoded(intent, movie_info)
-        response = self.generate_response_using_llama(movie_info, user_query)
+        prompt = self._generate_prompt_for_factual_questions(movie_info, user_query)
+        response = self.generate_response_using_llama(prompt)
+
+        return response
+
+    def answer_recommendation_questions(self, user_query:str, matched_movies_list):
+        features, recommend_movies = self.recommendation_handler.recommend_movies(matched_movies_list)
+
+        print(f"features: {features}")
+        print(f"recommend_movies: {recommend_movies}")
+
+        prompt = self._generate_prompt_for_recommendation(user_query, features, recommend_movies)
+        response = self.generate_response_using_llama(prompt)
+
+        if features:
+            feature_str = ", ".join(features)
+            feature_info = f"Adequate recommendations will be related to {feature_str}"
+            response = feature_info + "\n" + response
+
         return response
 
     #region LLM response generation
 
-    def _generate_prompt(self, movie_info: dict, user_query: str) -> str:
+    def _generate_prompt_for_factual_questions(self, movie_info: dict, user_query: str) -> str:
         
         system_msg = '''
         You are a specialized movie chatbot to answer user queries in 1 short sentence, maxmum 10 words.
@@ -87,12 +117,41 @@ class response_generator:
 
         return prompt
     
-    def generate_response_using_llama(self, movie_info: dict, user_query: str) -> str:
+    def _generate_prompt_for_recommendation(self, user_query: str, features: list, recommend_movies: list) -> str:
+        
+        features = ", ".join(features)
+        recommend_movies = ", ".join(recommend_movies)
+
+        system_msg = '''
+        Word limit: 40 words
+
+        Response in the following format: "According to my analysis, I would recommend the folling movies {recommend_movies}"
+        
+
+        - List the movie name only, DO NOT explain , DO NOT provide movie years or any further information
+        - You can replace maximun 2 recommended movies with your own knowledge, if the provided data is too far/irrelevant from user input
+        - Recommend maximun 3 movies.
+        - Keep the response short
+
+        Ignore the format and Remind the user to focus on movie questions if the question is not movie related
+
+        '''
+
+        data = {"features: ": features,
+                "recommend movies: ": recommend_movies}
+
+        prompt = [
+        {"role": "system", "content": f"{system_msg}"},
+        {"role": "user", "content": f"{user_query}"},
+        {"role": "data", "content": f"{data}"}
+        ]
+
+        return prompt
+    
+    def generate_response_using_llama(self, prompt) -> str:
         """
         Generate a response using llama based on the user query and the query result.
         """
-
-        prompt = self._generate_prompt(movie_info, user_query)
 
         # Generate the output
         outputs = self.llama_pipe(

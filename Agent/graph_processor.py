@@ -16,16 +16,16 @@ class GraphProcessor:
     DDIS = Namespace('http://ddis.ch/atai/')
     RDFS = Namespace('http://www.w3.org/2000/01/rdf-schema#')
 
-    def __init__(self, dataset_path= KG_GRAPH_PATH):
+    def __init__(self, dataset_path= KG_GRAPH_PATH, cache_graph_path= CACHE_GRAPH_PATH):
         self.graph = Graph()
         
-        self._get_graph_cache(dataset_path, self.CACHE_GRAPH_PATH)
+        self._get_graph_cache(dataset_path, cache_graph_path)
         self.ent2lbl = {ent: str(lbl) for ent, lbl in self.graph.subject_objects(RDFS.label)}
         self.embedding_handler = EmbeddingHandler(graph=self.graph, ent2lbl=self.ent2lbl)
     
-    def get_info_by_embedding(self, best_matched_movie, user_query):
+    def get_answer_by_embedding(self, best_matched_movie, user_query):
         try:
-            embed_message = self.embedding_handler.get_info_from_embedding(best_matched_movie, user_query)
+            embed_message = self.embedding_handler.get_answer_from_embedding(best_matched_movie, user_query)
             return embed_message
         except:
             return ""
