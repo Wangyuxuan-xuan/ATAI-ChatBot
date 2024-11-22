@@ -17,12 +17,16 @@ class Intent(Enum):
     SCREENWRITER = "screenwriter"
     GENERAL_INFO = "general_info"
 
-class GenerationMode(Enum):
-    FACTUAL = "factual"
-    RECOMMENDATION = "recommendation"
+class QuestionType(Enum):
+    FACTUAL = "Factual"
+    RECOMMENDATION = "Recommendation"
+    MULTIMEDIA = "Multimedia"
+    UNRELATED = "Unrelated"
 
 class response_generator:
     
+    question_classifier_path = "../QuestionClassifier/svm_question_classifier.pth"
+
     def __init__(self):
         self.graph_processor = GraphProcessor()
 
@@ -43,6 +47,11 @@ class response_generator:
             token =access_token  
         )
 
+        # Load the question classifier model and vectorizer
+        checkpoint = torch.load(self.question_classifier_path, weights_only = False)
+        self.question_classifier = checkpoint['svm_model']
+        self.question_classifier_vectorizer = checkpoint['vectorizer']
+
     def get_response(self, user_query: str) -> str:
         # Preprocess the user query to detect greetings
         processed_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.lower().strip())
@@ -53,11 +62,44 @@ class response_generator:
         matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
         print(f"matched movies: \n {matched_movies_list}")
 
-        response = self._answer_recommendation_questions(user_query, matched_movies_list)
+        question_type: QuestionType = self._get_question_type(user_query)
 
-        # factual_res = self.answer_factual_questions(user_query, matched_movies_list)
+        response = ""
+
+        if question_type == QuestionType.FACTUAL:
+            response = self._answer_factual_questions(user_query, matched_movies_list)
+        elif question_type == QuestionType.RECOMMENDATION:
+            response = self._answer_recommendation_questions(user_query, matched_movies_list)
+        elif question_type == QuestionType.MULTIMEDIA:
+            response = "I am sorry, multimedia is not supported yet"
+        else:
+            response = self._handle_unrelated_questions(user_query)
         
         return response
+    
+    def _handle_unrelated_questions(self, user_query: str):
+        return "Appoligze that I have knowledge of movie related questions only."
+
+    def _get_question_type(self, user_query) -> QuestionType:
+
+        fall_back_type = QuestionType.FACTUAL
+
+        # Use the loaded model for inference
+        new_questions = [user_query]
+        new_questions_tfidf = self.question_classifier_vectorizer.transform(new_questions)
+        predictions = self.question_classifier.predict(new_questions_tfidf)
+        
+        if not predictions:
+            return fall_back_type
+        
+        type = predictions[0]
+        
+        match type:
+            case "Factual": return QuestionType.FACTUAL
+            case "Recommendation": return QuestionType.RECOMMENDATION
+            case "Multimedia": return QuestionType.MULTIMEDIA
+            case "Unrelated": return QuestionType.UNRELATED
+
 
     def _answer_factual_questions(self, user_query: str, matched_movies_list):
         # Step 2: Random sample questions to use SPARQL or embedding (40% embedding, 60% SPARQL)
