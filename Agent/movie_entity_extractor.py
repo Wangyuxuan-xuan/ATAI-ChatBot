@@ -3,7 +3,7 @@ from thefuzz import fuzz, process
 import pickle
 
 class MovieEntityExtractor:
-    tuned_movie_bert_base_NER = "../Tune-BERT-NER/Tuned_BERT_NER_movie-60000"
+    tuned_movie_bert_base_NER = "../Tune-BERT-NER/fine_tuned_BERT_base_uncased"
 
     def __init__(self):
 
