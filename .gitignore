@@ -6,7 +6,9 @@ Tune-BERT-NER/fine_tuned_ner_model/
 Tune-BERT-NER/results/
 /Tune-BERT-NER/fine_tuned_ner_model-20000 vocab
 /Tune-BERT-NER/Tuned_BERT_NER_movie-60000
+/Tune-BERT-NER/fine_tuned_BERT_base_uncased
 
 .ipynb_checkpoints/
 *.log
+Tune-BERT-NER/movie_title_dataset.json
 Tune-BERT-NER/movie_title_dataset.csv
