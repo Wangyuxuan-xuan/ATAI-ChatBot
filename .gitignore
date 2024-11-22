@@ -12,3 +12,5 @@ Tune-BERT-NER/results/
 *.log
 Tune-BERT-NER/movie_title_dataset.json
 Tune-BERT-NER/movie_title_dataset.csv
+QuestionClassifier/Movie_Questions_Base.csv
+QuestionClassifier/Prompt.txt
