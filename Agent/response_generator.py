@@ -6,7 +6,7 @@ import torch
 import re
 import random
 from movie_entity_extractor import MovieEntityExtractor
-from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES
+from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -107,7 +107,7 @@ class response_generator:
         if use_embedding:
             # If use embedding, try to get embedding answer
             # If there's an answer, we return it, otherwise we still use Sparql
-            best_matched_movie = self.movie_entity_extractor.get_best_match_movie(user_query)
+            best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
             embedding_answer = self.graph_processor.get_answer_by_embedding(best_matched_movie, user_query)
             if embedding_answer:
                 return embedding_answer
@@ -122,20 +122,61 @@ class response_generator:
         return response
 
     def _answer_recommendation_questions(self, user_query:str, matched_movies_list):
-        features, recommend_movies = self.recommendation_handler.recommend_movies(matched_movies_list)
 
+        
+        features, recommend_movies = [], []
+        try:
+            features, recommend_movies =  self.recommendation_handler.recommend_movies(matched_movies_list)
+        except Exception as e:
+            print(e)
+            
         print(f"features: {features}")
         print(f"recommend_movies: {recommend_movies}")
 
-        prompt = self._generate_prompt_for_recommendation(user_query, features, recommend_movies)
+        
+        if features and recommend_movies:
+            response = self._hardcode_generate_recommendation_response(features, recommend_movies)
+        elif self._is_genre_apprears_in_user_query(user_query):
+            response = self._generate_recommendation_response_using_llama(user_query)
+        else:
+            response = "I applogize, I do not have this knowledge at the moment. Please be more specific"
+
+        
+        return response
+    
+    def _is_genre_apprears_in_user_query(self, user_query:str) -> bool:
+        for genre in TOP_20_GENRES:
+            genre = genre.lower()
+            user_query = user_query.lower()
+            if genre in user_query:
+                return True
+        
+        return False
+
+    
+    def _hardcode_generate_recommendation_response(self, features, recommend_movies) -> str:
+
+        if not features or not recommend_movies:
+            return ""
+
+        feature_str = ", ".join(features)
+        feature_info = f"Adequate recommendations will be related to {feature_str}. "
+
+        movie_info = "According to my analysis, I would recommend the following movies:"
+
+        movie_list = "\n".join(f"- {movie}" for movie in recommend_movies)
+
+        response = f"{feature_info}\n{movie_info}\n{movie_list}"
+        
+        return response
+    
+    def _generate_recommendation_response_using_llama(self, user_query):
+
+        prompt = self._generate_prompt_for_recommendation(user_query)
         response = self._generate_response_using_llama(prompt)
 
-        if features:
-            feature_str = ", ".join(features)
-            feature_info = f"Adequate recommendations will be related to {feature_str}"
-            response = feature_info + "\n" + response
-
         return response
+
 
     #region LLM response generation
 
@@ -159,33 +200,60 @@ class response_generator:
 
         return prompt
     
-    def _generate_prompt_for_recommendation(self, user_query: str, features: list, recommend_movies: list) -> str:
-        
-        features = ", ".join(features)
-        recommend_movies = ", ".join(recommend_movies)
+    def _generate_prompt_for_recommendation(self, user_query: str) -> str:
 
         system_msg = '''
         Word limit: 40 words
 
-        Response in the following format: "According to my analysis, I would recommend the folling movies {recommend_movies}"
-        
+        You are a specialized movie chatbot to answer movie recommendation queires. 
+
+        Prioritize the provided data to formulate your response. 
+
+        Kindly remind the user to focus on movie related questions if the question is not movie related
+
+        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer plot questions.
+
+        First determine which movie genre does the user want based on user input, then recommend 3 movies only based on that genre.
+
+        Response in the following format: "Adequate recommendations will be related to {one/more of the given genres}. According to my analysis, I would recommend the folling movies {recommend_movies}"        
 
         - List the movie name only, DO NOT explain , DO NOT provide movie years or any further information
-        - You can replace maximun 2 recommended movies with your own knowledge, if the provided data is too far/irrelevant from user input
         - Recommend maximun 3 movies.
         - Keep the response short
+        - Do not add year into recommended movies, show the movie title only
+        - Answer "Sorry I don't have knowledge of that" if the genre is not in the given genres or given genres are not mentioned
+        
+        List of availible movie genres:
+        -------------------------
 
-        Ignore the format and Remind the user to focus on movie questions if the question is not movie related
+        top_20_genres = [
+            "Action",
+            "Adventure",
+            "Animation",
+            "Biography",
+            "Comedy",
+            "Crime",
+            "Documentary",
+            "Drama",
+            "Family",
+            "Fantasy",
+            "Horror",
+            "Musical",
+            "Mystery",
+            "Romance",
+            "Science Fiction (Sci-Fi)",
+            "Thriller",
+            "War",
+            "Western",
+            "Superhero",
+            "Psychological Thriller"
+        ]
 
         '''
 
-        data = {"features: ": features,
-                "recommend movies: ": recommend_movies}
-
         prompt = [
         {"role": "system", "content": f"{system_msg}"},
-        {"role": "user", "content": f"{user_query}"},
-        {"role": "data", "content": f"{data}"}
+        {"role": "user", "content": f"{user_query}"}
         ]
 
         return prompt

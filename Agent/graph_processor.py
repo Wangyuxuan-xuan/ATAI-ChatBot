@@ -24,6 +24,8 @@ class GraphProcessor:
         self.embedding_handler = EmbeddingHandler(graph=self.graph, ent2lbl=self.ent2lbl)
     
     def get_answer_by_embedding(self, best_matched_movie, user_query):
+        if not best_matched_movie or not user_query:
+            return ""
         try:
             embed_message = self.embedding_handler.get_answer_from_embedding(best_matched_movie, user_query)
             return embed_message

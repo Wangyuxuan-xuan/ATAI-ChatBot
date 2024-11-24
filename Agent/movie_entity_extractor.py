@@ -33,15 +33,6 @@ class MovieEntityExtractor:
         matched_movies = self.match_fuzzy_searched_movie_with_user_query(matched_movies, user_query)
 
         return matched_movies
-    
-    def get_best_match_movie(self, user_query: str) -> str:
-
-        matched_movies_list = self.get_matched_movies_list(user_query) 
-        top_matched_movie = self.filter_top_matched_movie(matched_movies_list, user_query)
-
-        print(f"final_matched_movie : {top_matched_movie}" )
-
-        return top_matched_movie
 
     def extract_movie_using_self_tuned_NER(self, sentence):
         ner_results = self.tuned_movie_ner_pipeline(sentence)
@@ -97,32 +88,40 @@ class MovieEntityExtractor:
 
         return res
 
-    def filter_top_matched_movie(self, extracted_movie_list, user_query) -> str:
+    def fuzzy_match_top_matched_movie_with_user_query(self, matched_movies, user_query) -> str:
         
-        print("\n ---filter_top_matched_movie---")
         res = []
 
-        extract_results = process.extract(user_query, extracted_movie_list, scorer=fuzz.ratio, limit=2)
+        extract_results = process.extract(user_query, matched_movies, scorer=fuzz.ratio, limit=2)
 
         for match, score in extract_results:
             if not match:
                 continue
+            
+            if score < 80:
+                continue
 
             res.append(match)
-            print(f"{match}, {score}")
+            # print(f"{match}, {score}")
 
         return res[0] if res else []
 
-    def match_fuzzy_searched_movie_with_user_query(self, matched_movies:list, user_input):
+    def match_fuzzy_searched_movie_with_user_query(self, matched_movies:list, user_query):
 
         def remove_non_alphanumeric(text):
             return ''.join(filter(str.isalnum, text))
 
         res = []
+        # Hard constraint
         for m in matched_movies:
             m_cleaned = remove_non_alphanumeric(m)
-            user_input_cleaned = remove_non_alphanumeric(user_input)
+            user_input_cleaned = remove_non_alphanumeric(user_query)
             if m_cleaned.lower() in user_input_cleaned.lower():
                 res.append(m)
 
+        # If there's a type in user input and the hard constraint does not apply
+        # Return the best matched movie
+        if not res:
+            best_match = self.fuzzy_match_top_matched_movie_with_user_query(matched_movies, user_query)
+            res = [best_match]
         return res

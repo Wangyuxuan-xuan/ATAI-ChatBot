@@ -32,10 +32,13 @@ class RecommendationHandler:
         for m in similar_movies:
             if m in liked_movies:
                 continue
-
+            
+            if m in recommendations:
+                continue
+            
             recommendations.append(m)
 
-        recommendations = list(set(similar_movies))[:top_k]  # Limit to top_k results
+        recommendations = recommendations[:top_k]  # Limit to top_k results
         return features, recommendations
 
     def get_top_k_features(self, liked_movies: list, top_k: int = 5) -> list:

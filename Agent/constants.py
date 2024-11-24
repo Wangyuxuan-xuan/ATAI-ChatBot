@@ -72,3 +72,26 @@ PERIODIC_RESPONSES = [
     "Almost done, just another moment...",
     "Hold on, I'm looking it up...",
 ]
+
+TOP_20_GENRES = [
+            "Action",
+            "Adventure",
+            "Animation",
+            "Biography",
+            "Comedy",
+            "Crime",
+            "Documentary",
+            "Drama",
+            "Family",
+            "Fantasy",
+            "Horror",
+            "Musical",
+            "Mystery",
+            "Romance",
+            "Science Fiction (Sci-Fi)",
+            "Thriller",
+            "War",
+            "Western",
+            "Superhero",
+            "Psychological Thriller"
+        ]
