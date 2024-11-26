@@ -6,7 +6,7 @@ import torch
 import re
 import random
 from movie_entity_extractor import MovieEntityExtractor
-from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
+from constants import RESPONSE_ERROR, RESPONSE_NO_KNOWLEDGE, SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -139,7 +139,7 @@ class response_generator:
         elif self._is_genre_apprears_in_user_query(user_query):
             response = self._generate_recommendation_response_using_llama(user_query)
         else:
-            response = "I applogize, I do not have this knowledge at the moment. Please be more specific"
+            response = RESPONSE_NO_KNOWLEDGE
 
         
         return response
@@ -281,7 +281,7 @@ class response_generator:
         for message in json_output:
             if message.get('role') == 'assistant':
                 return message.get('content')
-        return "I apologize, but I encountered an error while processing your request. Please try again :"
+        return RESPONSE_ERROR
 
     #endregion LLM response generation
     

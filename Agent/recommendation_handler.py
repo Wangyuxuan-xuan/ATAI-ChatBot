@@ -1,3 +1,4 @@
+import warnings
 from sklearn.metrics import pairwise_distances
 from graph_processor import GraphProcessor
 from sklearn.cluster import KMeans
@@ -7,6 +8,8 @@ class RecommendationHandler:
 
     def __init__(self, graph_processor: GraphProcessor):
         self.graph_processor = graph_processor
+        # Suppress specific warning category from sklearn
+        warnings.filterwarnings("ignore", category=UserWarning, module="sklearn.cluster._kmeans")
 
         # Define a whitelist of meaningful relations
 
