@@ -102,12 +102,20 @@ class response_generator:
 
 
     def _answer_factual_questions(self, user_query: str, matched_movies_list):
+
+        best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
+
+        # Step 1: Check if the requested info is answered by crowd sourcing, if so, override the graph answer
+        crowd_source_answer = self.graph_processor.get_answer_by_crowd_sourcing(best_matched_movie, user_query)
+
+        if crowd_source_answer:
+            return crowd_source_answer
+
         # Step 2: Random sample questions to use SPARQL or embedding (40% embedding, 60% SPARQL)
         use_embedding = random.random() < 0.4
         if use_embedding:
             # If use embedding, try to get embedding answer
             # If there's an answer, we return it, otherwise we still use Sparql
-            best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
             embedding_answer = self.graph_processor.get_answer_by_embedding(best_matched_movie, user_query)
             if embedding_answer:
                 return embedding_answer

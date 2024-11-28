@@ -30,8 +30,11 @@ class MovieEntityExtractor:
 
         matched_movies = self.fuzzy_match_movie_with_movie_list(ner_movies_arr)
 
+        res = []
+        for m in matched_movies:
+            res.append(m.lstrip())
 
-        return matched_movies
+        return res
     
     def fuzzy_match_movie_with_movie_list(self, ner_movies_arr:list):
         

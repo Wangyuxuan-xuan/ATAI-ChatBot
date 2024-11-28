@@ -1,14 +1,17 @@
 from collections import defaultdict
 import pickle
 import os
+import pandas as pd
 from rdflib import RDFS, Graph, Namespace
+import rdflib
 from rdflib.plugins.sparql import prepareQuery
 from embedding_handler import EmbeddingHandler
 
 class GraphProcessor:
     KG_GRAPH_PATH = './../Dataset/14_graph.nt'
     CACHE_GRAPH_PATH = './../Dataset/graph.pkl'
-    
+    CROWD_SOURCE_CSV_PATH = "./../Dataset/Crowdsourcing/crowd-sourcing-result.csv"
+
     # Namespaces
     WD = Namespace('http://www.wikidata.org/entity/')
     WDT = Namespace('http://www.wikidata.org/prop/direct/')
@@ -22,7 +25,58 @@ class GraphProcessor:
         self._get_graph_cache(dataset_path, cache_graph_path)
         self.ent2lbl = {ent: str(lbl) for ent, lbl in self.graph.subject_objects(RDFS.label)}
         self.embedding_handler = EmbeddingHandler(graph=self.graph, ent2lbl=self.ent2lbl)
+
+        self.crowd_source_data = pd.read_csv(self.CROWD_SOURCE_CSV_PATH, index_col=0)
     
+    def get_answer_by_crowd_sourcing(self, best_matched_movie, user_query) -> str:
+        crowd_disclaimer = None
+        
+        # TODO Translate best_matched_movie into entity
+        movie_entity = self._get_movie_entity_from_name(best_matched_movie)
+
+        if not movie_entity:
+            print(f"{best_matched_movie} is not in entity space")
+            return ""
+        
+        relation_entity, relation_label = self._get_relation_entity_from_user_query(user_query)
+
+        crowd_data_relation_list = self.crowd_source_data['Input2ID'].values
+
+        # Check whether relation exists and return the answer
+        if relation_entity in crowd_data_relation_list:
+            selected_row = self.crowd_source_data[
+                (self.crowd_source_data['Input1ID'] == movie_entity) 
+                & (self.crowd_source_data['Input2ID'] == relation_entity)
+                ]
+        else:
+            selected_row = self.crowd_source_data[self.crowd_source_data['Input1ID'] == movie_entity]
+
+        crowd_answer = selected_row['Input3ID'].values
+
+        if crowd_answer:
+            crowd_answer = crowd_answer[0]
+
+        if "wd:" in crowd_answer:
+            entity_id = crowd_answer.split(":")[-1]
+            entity_url = rdflib.term.URIRef(self.WD + entity_id)
+            if not entity_url in self.ent2lbl:
+                return ""
+
+            crowd_answer = self.ent2lbl[entity_url]
+
+        crowd_match = self.crowd_source_data[self.crowd_source_data['Input1ID'].str.contains(movie_entity, na=False)]
+        if not crowd_match.empty:
+            crowd_disclaimer = f'[Crowd, inter-rater agreement {crowd_match["FleissKappa"].iloc[0]}, The answer distribution for this specific task was {crowd_match["CORRECT"].iloc[0]} support votes, {crowd_match["INCORRECT"].iloc[0]} reject votes]'
+    
+        return self._format_answer_for_crowd_sourcing(crowd_answer, best_matched_movie, relation_label, crowd_disclaimer)
+    
+    def _format_answer_for_crowd_sourcing(self, crowd_answer, best_matched_movie, relation_label, crowd_disclaimer) -> str:
+        # Return the result
+        response = f"Answer by crowd sourcing: The {relation_label.replace('_', ' ')} of {best_matched_movie} is {crowd_answer}."
+        
+        return response + "\n" + crowd_disclaimer
+
+
     def get_answer_by_embedding(self, best_matched_movie, user_query):
         if not best_matched_movie or not user_query:
             return ""
@@ -156,6 +210,36 @@ class GraphProcessor:
         return any(keyword in str for keyword in ("SELECT", "ASK", "CONSTRUCT", "DESCRIBE"))
 
     #region Private methods
+
+    def _get_movie_entity_from_name(self, movie_name):
+        if movie_name not in self.embedding_handler.lbl2ent:
+            print(f"The movie '{movie_name}' was not found in the embedding space.")
+            return None
+
+        movie_uri = self.embedding_handler.lbl2ent[movie_name]
+
+        # Check if the movie URI is present in the entity dictionary
+        if movie_uri not in self.embedding_handler.ent2id:
+            print(f"The movie '{movie_name}' does not have an associated embedding in the space.")
+            return None
+
+        # Extract the entity ID from the URIRef
+        movie_id = str(movie_uri).split("/")[-1].strip("')")
+
+        return "wd:"+ movie_id
+
+    def _get_relation_entity_from_user_query(self, user_query):
+
+        intent = self.embedding_handler.get_embedding_relation(user_query)
+        relation_label = intent.value 
+
+        relation_uri = self.embedding_handler.lbl2rel[relation_label]
+
+        # Extract the relation entity ID from the URIRef
+        relation_id = str(relation_uri).split("/")[-1].strip("')")
+
+        return "wdt:"+ relation_id, relation_label
+
     def _execute_query(self, query) -> list[str]:
         """Executes a sparql query and returns the results."""
         results = self.graph.query(query)

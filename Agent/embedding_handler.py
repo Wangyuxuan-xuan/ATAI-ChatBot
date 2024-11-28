@@ -70,7 +70,7 @@ class EmbeddingHandler:
         movie_id = self.ent2id[movie_uri]
         movie_embed = self.ent_embeds[movie_id].reshape(1, -1)
 
-        intent = self._get_embedding_relation(user_query)
+        intent = self.get_embedding_relation(user_query)
         relation_label = intent.value 
 
         relation_uri = self.lbl2rel[relation_label]
@@ -175,7 +175,7 @@ class EmbeddingHandler:
         return relation_embeddings
 
     
-    def _get_embedding_relation(self, message: str) -> Relation:
+    def get_embedding_relation(self, message: str) -> Relation:
         """
         Determine the user's intent based on keywords in the message.
         """
