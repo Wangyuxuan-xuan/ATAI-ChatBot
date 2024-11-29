@@ -88,6 +88,28 @@ class GraphProcessor:
         except:
             return ""
 
+    def _get_imdb_id_from_graph(self, movie_name: str):
+        """
+        Retrieves the IMDb ID of a movie based on its label name using SPARQL.
+        """
+        query_template = '''
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+            PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+            
+            SELECT ?imdbId WHERE {{
+                ?movie rdfs:label "{0}"@en .
+                ?movie wdt:P345 ?imdbId .
+            }}
+        '''
+        query = query_template.format(movie_name)
+        result = self.graph.query(query)
+
+        # Extract the IMDb ID from the query result
+        for row in result:
+            return str(row[0])
+        return None
+
+
     #region SAPRQL factual questions
 
     def get_movie_entities_info_by_SPARQL(self, movie_list):

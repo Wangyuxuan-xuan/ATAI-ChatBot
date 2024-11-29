@@ -1,6 +1,7 @@
 from enum import Enum
-from recommendation_handler import RecommendationHandler
 from graph_processor import GraphProcessor
+from recommendation_handler import RecommendationHandler
+from multimedia_handler import MultimediaHandler
 from transformers import pipeline
 import torch
 import re
@@ -34,6 +35,7 @@ class response_generator:
         self.movie_entity_extractor = MovieEntityExtractor()
 
         self.recommendation_handler = RecommendationHandler(self.graph_processor)
+        self.multimedia_handler = MultimediaHandler(self.graph_processor)
 
         # Initialize Llama-3.2-1B-Instruct
         model_id = "meta-llama/Llama-3.2-1B-Instruct"
@@ -71,7 +73,7 @@ class response_generator:
         elif question_type == QuestionType.RECOMMENDATION:
             response = self._answer_recommendation_questions(user_query, matched_movies_list)
         elif question_type == QuestionType.MULTIMEDIA:
-            response = "I am sorry, multimedia is not supported yet"
+            response = self._answer_multimedia_questions(user_query, matched_movies_list)
         else:
             response = self._handle_unrelated_questions(user_query)
         
@@ -152,6 +154,13 @@ class response_generator:
         
         return response
     
+    def _answer_multimedia_questions(self, user_query:str, matched_movies_list):
+        
+        best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
+
+        image_id = self.multimedia_handler.show_image(user_query, best_matched_movie)
+        return f"image:{image_id}"
+
     def _is_genre_apprears_in_user_query(self, user_query:str) -> bool:
         for genre in TOP_20_GENRES:
             genre = genre.lower()
