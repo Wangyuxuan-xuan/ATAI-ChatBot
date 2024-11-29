@@ -28,6 +28,7 @@ class GraphProcessor:
 
         self.crowd_source_data = pd.read_csv(self.CROWD_SOURCE_CSV_PATH, index_col=0)
     
+    # region crowd sourcing
     def get_answer_by_crowd_sourcing(self, best_matched_movie, user_query) -> str:
         crowd_disclaimer = None
         
@@ -76,6 +77,7 @@ class GraphProcessor:
         
         return response + "\n" + crowd_disclaimer
 
+    # endregion
 
     def get_answer_by_embedding(self, best_matched_movie, user_query):
         if not best_matched_movie or not user_query:
