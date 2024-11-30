@@ -1,19 +1,24 @@
 import re
-from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
 from thefuzz import fuzz, process
 import pickle
 
-class MovieEntityExtractor:
+class NameEntityRecognizer:
     tuned_movie_bert_base_NER = "../Tune-BERT-NER/fine_tuned_BERT_base_uncased"
 
     def __init__(self):
 
-        # # Load the pre-trained BERT NER model from Hugging Face
-        # self.bert_base_NER = "dslim/bert-base-NER"
-        # self.bert_base_NER_tokenizer = AutoTokenizer.from_pretrained(self.bert_base_NER)
-        # self.bert_base_NER_model = AutoModelForTokenClassification.from_pretrained(self.bert_base_NER)
-        # self.bert_base_NER_pipeline = pipeline("ner", model=self.bert_base_NER_model, tokenizer=self.bert_base_NER_tokenizer)
-        
+        # Load the pre-trained BERT NER model from Hugging Face
+        self.bert_base_NER = "dslim/bert-base-NER"
+        self.bert_base_NER_tokenizer = AutoTokenizer.from_pretrained(self.bert_base_NER)
+        self.bert_base_NER_model = AutoModelForTokenClassification.from_pretrained(self.bert_base_NER)
+        self.bert_base_NER_pipeline = pipeline(
+                    "ner",
+                    model=self.bert_base_NER_model,
+                    tokenizer=self.bert_base_NER_tokenizer,
+                    aggregation_strategy="simple",
+                    device="cuda"
+                )        
         # Load self tuned BERT NER model
         self.tuned_movie_ner_pipeline = pipeline("ner", model=self.tuned_movie_bert_base_NER, tokenizer=self.tuned_movie_bert_base_NER, aggregation_strategy="simple", device="cuda")
         self._init_Dataset()
@@ -22,6 +27,48 @@ class MovieEntityExtractor:
         with open("../Dataset/MovieTitles.pickle", 'rb') as f:
             movie_titles = pickle.load(f)
         self.movie_title_set = set(movie_titles)
+
+    def get_best_match_person(self, user_query: str) -> list:
+        '''
+        Extract the person name from user_query using bert_base_NER_pipeline.
+        Concatenate the result, format the result to be the exact person name,
+        and exclude unwanted characters.
+        '''
+        # Use the NER pipeline to get entities from the user query
+        ner_results = self.bert_base_NER_pipeline(user_query)
+        person_names = []
+        current_name = ''
+        for entity in ner_results:
+            if entity['entity_group'] == 'PER':
+                # Use the 'word' attribute to get the entity text
+                word = entity['word']
+                # Remove any leading/trailing punctuation and whitespace
+                word = word.strip('.,!? ')
+                # Check if the word starts with '##', indicating a continuation
+                if word.startswith('##'):
+                    # Remove '##' and concatenate without space
+                    word = word[2:]
+                    current_name += word
+                else:
+                    # If there's an existing name, append it to the list
+                    if current_name:
+                        person_names.append(current_name.strip())
+                    # Start a new name
+                    current_name = word
+            else:
+                # If we reach a non-PER entity, append the current name if it exists
+                if current_name:
+                    person_names.append(current_name.strip())
+                    current_name = ''
+        # Append any remaining name after the loop
+        if current_name:
+            person_names.append(current_name.strip())
+        # Replace multiple spaces with a single space in each name
+        person_names = [re.sub(r'\s+', ' ', name) for name in person_names]
+        # Remove duplicates and return the list
+        person_names = list(set(person_names))
+        return person_names
+
 
     def get_matched_movies_list(self, user_query: str) -> list:
         ner_movies_arr = self.extract_movie_using_self_tuned_NER(user_query)
