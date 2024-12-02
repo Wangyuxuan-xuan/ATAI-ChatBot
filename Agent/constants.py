@@ -1,3 +1,6 @@
+RESPONSE_NO_KNOWLEDGE = "I applogize, I do not have this knowledge at the moment. Please be more specific, thanks :)"
+RESPONSE_ERROR = "I apologize, but I encountered an error while processing your request. Please try again :("
+
 SYNONYMS = {
     "director": ["director", "directed", "directs", "direct"],
     "release_date": ["release date", "released"],
@@ -72,3 +75,26 @@ PERIODIC_RESPONSES = [
     "Almost done, just another moment...",
     "Hold on, I'm looking it up...",
 ]
+
+TOP_20_GENRES = [
+            "Action",
+            "Adventure",
+            "Animation",
+            "Biography",
+            "Comedy",
+            "Crime",
+            "Documentary",
+            "Drama",
+            "Family",
+            "Fantasy",
+            "Horror",
+            "Musical",
+            "Mystery",
+            "Romance",
+            "Science Fiction (Sci-Fi)",
+            "Thriller",
+            "War",
+            "Western",
+            "Superhero",
+            "Psychological Thriller"
+        ]

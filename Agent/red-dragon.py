@@ -34,8 +34,7 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. I may answer your question using either SPARQL or embeddings, chosen randomly (They might have different answer). 
-                                       Feel free to ask the same question twice to see if you get the answer from embedding or SPARQL :)
+                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. How can I help you today :)
                     ''')
                     room.initiated = True
  

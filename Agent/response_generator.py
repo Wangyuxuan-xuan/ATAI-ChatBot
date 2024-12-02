@@ -1,11 +1,12 @@
 from enum import Enum
+from recommendation_handler import RecommendationHandler
 from graph_processor import GraphProcessor
 from transformers import pipeline
 import torch
 import re
 import random
 from movie_entity_extractor import MovieEntityExtractor
-from constants import SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES
+from constants import RESPONSE_ERROR, RESPONSE_NO_KNOWLEDGE, SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -16,13 +17,23 @@ class Intent(Enum):
     SCREENWRITER = "screenwriter"
     GENERAL_INFO = "general_info"
 
+class QuestionType(Enum):
+    FACTUAL = "Factual"
+    RECOMMENDATION = "Recommendation"
+    MULTIMEDIA = "Multimedia"
+    UNRELATED = "Unrelated"
+
 class response_generator:
     
+    question_classifier_path = "../QuestionClassifier/svm_question_classifier.pth"
+
     def __init__(self):
         self.graph_processor = GraphProcessor()
 
         # Initialize MovieEntityExtractor
         self.movie_entity_extractor = MovieEntityExtractor()
+
+        self.recommendation_handler = RecommendationHandler(self.graph_processor)
 
         # Initialize Llama-3.2-1B-Instruct
         model_id = "meta-llama/Llama-3.2-1B-Instruct"
@@ -36,6 +47,11 @@ class response_generator:
             token =access_token  
         )
 
+        # Load the question classifier model and vectorizer
+        checkpoint = torch.load(self.question_classifier_path, weights_only = False)
+        self.question_classifier = checkpoint['svm_model']
+        self.question_classifier_vectorizer = checkpoint['vectorizer']
+
     def get_response(self, user_query: str) -> str:
         # Preprocess the user query to detect greetings
         processed_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.lower().strip())
@@ -46,13 +62,53 @@ class response_generator:
         matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
         print(f"matched movies: \n {matched_movies_list}")
 
+        question_type: QuestionType = self._get_question_type(user_query)
+
+        response = ""
+
+        if question_type == QuestionType.FACTUAL:
+            response = self._answer_factual_questions(user_query, matched_movies_list)
+        elif question_type == QuestionType.RECOMMENDATION:
+            response = self._answer_recommendation_questions(user_query, matched_movies_list)
+        elif question_type == QuestionType.MULTIMEDIA:
+            response = "I am sorry, multimedia is not supported yet"
+        else:
+            response = self._handle_unrelated_questions(user_query)
+        
+        return response
+    
+    def _handle_unrelated_questions(self, user_query: str):
+        return "Appoligze that I have knowledge of movie related questions only."
+
+    def _get_question_type(self, user_query) -> QuestionType:
+
+        fall_back_type = QuestionType.FACTUAL
+
+        # Use the loaded model for inference
+        new_questions = [user_query]
+        new_questions_tfidf = self.question_classifier_vectorizer.transform(new_questions)
+        predictions = self.question_classifier.predict(new_questions_tfidf)
+        
+        if not predictions:
+            return fall_back_type
+        
+        type = predictions[0]
+        
+        match type:
+            case "Factual": return QuestionType.FACTUAL
+            case "Recommendation": return QuestionType.RECOMMENDATION
+            case "Multimedia": return QuestionType.MULTIMEDIA
+            case "Unrelated": return QuestionType.UNRELATED
+
+
+    def _answer_factual_questions(self, user_query: str, matched_movies_list):
         # Step 2: Random sample questions to use SPARQL or embedding (40% embedding, 60% SPARQL)
         use_embedding = random.random() < 0.4
         if use_embedding:
             # If use embedding, try to get embedding answer
             # If there's an answer, we return it, otherwise we still use Sparql
-            best_matched_movie = self.movie_entity_extractor.get_best_match_movie(user_query)
-            embedding_answer = self.graph_processor.get_info_by_embedding(best_matched_movie, user_query)
+            best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
+            embedding_answer = self.graph_processor.get_answer_by_embedding(best_matched_movie, user_query)
             if embedding_answer:
                 return embedding_answer
         
@@ -60,14 +116,71 @@ class response_generator:
         movie_info = self.graph_processor.get_movie_entities_info_by_SPARQL(matched_movies_list)
 
         # Step 4: Format output using language model
-        # intent = self.determine_intent(user_query)
-        # response = self.generate_response_hardcoded(intent, movie_info)
-        response = self.generate_response_using_llama(movie_info, user_query)
+        prompt = self._generate_prompt_for_factual_questions(movie_info, user_query)
+        response = self._generate_response_using_llama(prompt)
+
         return response
+
+    def _answer_recommendation_questions(self, user_query:str, matched_movies_list):
+
+        
+        features, recommend_movies = [], []
+        try:
+            features, recommend_movies =  self.recommendation_handler.recommend_movies(matched_movies_list)
+        except Exception as e:
+            print(e)
+            
+        print(f"features: {features}")
+        print(f"recommend_movies: {recommend_movies}")
+
+        
+        if features and recommend_movies:
+            response = self._hardcode_generate_recommendation_response(features, recommend_movies)
+        elif self._is_genre_apprears_in_user_query(user_query):
+            response = self._generate_recommendation_response_using_llama(user_query)
+        else:
+            response = RESPONSE_NO_KNOWLEDGE
+
+        
+        return response
+    
+    def _is_genre_apprears_in_user_query(self, user_query:str) -> bool:
+        for genre in TOP_20_GENRES:
+            genre = genre.lower()
+            user_query = user_query.lower()
+            if genre in user_query:
+                return True
+        
+        return False
+
+    
+    def _hardcode_generate_recommendation_response(self, features, recommend_movies) -> str:
+
+        if not features or not recommend_movies:
+            return ""
+
+        feature_str = ", ".join(features)
+        feature_info = f"Adequate recommendations will be related to {feature_str}. "
+
+        movie_info = "According to my analysis, I would recommend the following movies:"
+
+        movie_list = "\n".join(f"- {movie}" for movie in recommend_movies)
+
+        response = f"{feature_info}\n{movie_info}\n{movie_list}"
+        
+        return response
+    
+    def _generate_recommendation_response_using_llama(self, user_query):
+
+        prompt = self._generate_prompt_for_recommendation(user_query)
+        response = self._generate_response_using_llama(prompt)
+
+        return response
+
 
     #region LLM response generation
 
-    def _generate_prompt(self, movie_info: dict, user_query: str) -> str:
+    def _generate_prompt_for_factual_questions(self, movie_info: dict, user_query: str) -> str:
         
         system_msg = '''
         You are a specialized movie chatbot to answer user queries in 1 short sentence, maxmum 10 words.
@@ -87,12 +200,68 @@ class response_generator:
 
         return prompt
     
-    def generate_response_using_llama(self, movie_info: dict, user_query: str) -> str:
+    def _generate_prompt_for_recommendation(self, user_query: str) -> str:
+
+        system_msg = '''
+        Word limit: 40 words
+
+        You are a specialized movie chatbot to answer movie recommendation queires. 
+
+        Prioritize the provided data to formulate your response. 
+
+        Kindly remind the user to focus on movie related questions if the question is not movie related
+
+        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer plot questions.
+
+        First determine which movie genre does the user want based on user input, then recommend 3 movies only based on that genre.
+
+        Response in the following format: "Adequate recommendations will be related to {one/more of the given genres}. According to my analysis, I would recommend the folling movies {recommend_movies}"        
+
+        - List the movie name only, DO NOT explain , DO NOT provide movie years or any further information
+        - Recommend maximun 3 movies.
+        - Keep the response short
+        - Do not add year into recommended movies, show the movie title only
+        - Answer "Sorry I don't have knowledge of that" if the genre is not in the given genres or given genres are not mentioned
+        
+        List of availible movie genres:
+        -------------------------
+
+        top_20_genres = [
+            "Action",
+            "Adventure",
+            "Animation",
+            "Biography",
+            "Comedy",
+            "Crime",
+            "Documentary",
+            "Drama",
+            "Family",
+            "Fantasy",
+            "Horror",
+            "Musical",
+            "Mystery",
+            "Romance",
+            "Science Fiction (Sci-Fi)",
+            "Thriller",
+            "War",
+            "Western",
+            "Superhero",
+            "Psychological Thriller"
+        ]
+
+        '''
+
+        prompt = [
+        {"role": "system", "content": f"{system_msg}"},
+        {"role": "user", "content": f"{user_query}"}
+        ]
+
+        return prompt
+    
+    def _generate_response_using_llama(self, prompt) -> str:
         """
         Generate a response using llama based on the user query and the query result.
         """
-
-        prompt = self._generate_prompt(movie_info, user_query)
 
         # Generate the output
         outputs = self.llama_pipe(
@@ -112,7 +281,7 @@ class response_generator:
         for message in json_output:
             if message.get('role') == 'assistant':
                 return message.get('content')
-        return "I apologize, but I encountered an error while processing your request. Please try again :"
+        return RESPONSE_ERROR
 
     #endregion LLM response generation
     
