@@ -44,7 +44,7 @@ class RecommendationHandler:
         recommendations = recommendations[:top_k]  # Limit to top_k results
         return features, recommendations
 
-    def get_top_k_features(self, liked_movies: list, top_k: int = 5) -> list:
+    def get_top_k_features(self, liked_movies: list, top_k: int = 3) -> list:
         """
         Recommend movies based on all features of liked movies using K-means clustering.
         Args:

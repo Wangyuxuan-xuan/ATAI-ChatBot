@@ -6,7 +6,7 @@ from transformers import pipeline
 import torch
 import re
 import random
-from movie_entity_extractor import MovieEntityExtractor
+from name_entity_recognizer import NameEntityRecognizer
 from constants import RESPONSE_ERROR, RESPONSE_NO_KNOWLEDGE, SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
 
 class Intent(Enum):
@@ -32,7 +32,7 @@ class response_generator:
         self.graph_processor = GraphProcessor()
 
         # Initialize MovieEntityExtractor
-        self.movie_entity_extractor = MovieEntityExtractor()
+        self.name_entity_recognizer = NameEntityRecognizer()
 
         self.recommendation_handler = RecommendationHandler(self.graph_processor)
         self.multimedia_handler = MultimediaHandler(self.graph_processor)
@@ -61,8 +61,11 @@ class response_generator:
             return "Hello! I'm a movie chatbot, how can I help you today?"
 
         # Step 1: Perform NER
-        matched_movies_list = self.movie_entity_extractor.get_matched_movies_list(user_query)
-        print(f"matched movies: \n {matched_movies_list}")
+        matched_movies_list = self.name_entity_recognizer.get_matched_movies_list(user_query)
+        person_name_list = self.name_entity_recognizer.get_best_match_person(user_query)
+
+        print(f"NER matched movies: \n {matched_movies_list}")
+        print(f"NER matched person: \n {person_name_list}")
 
         question_type: QuestionType = self._get_question_type(user_query)
 
@@ -154,12 +157,27 @@ class response_generator:
         
         return response
     
-    def _answer_multimedia_questions(self, user_query:str, matched_movies_list):
+    def _answer_multimedia_questions(self, user_query:str, matched_movies_list: list, person_name_list: list):
         
+        matched_movies_list = self.name_entity_recognizer.match_movie_list_with_user_query(matched_movies_list, user_query)
         best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
+        best_matched_person = person_name_list[0] if person_name_list else ""
 
-        image_id = self.multimedia_handler.show_image(user_query, best_matched_movie)
-        return f"image:{image_id}"
+        print(f"Multimedia - best_matched_person: {best_matched_person}")
+        print(f"Multimedia - best_matched_movie: {best_matched_movie}")
+
+        if best_matched_person:
+            person_image_id = self.multimedia_handler.show_image_for_person(user_query, best_matched_person)
+            person_image_id = f"image:{person_image_id}"
+            return person_image_id
+        
+        if best_matched_movie:
+            movie_image_id = self.multimedia_handler.show_image_for_movie(user_query, best_matched_movie)
+            movie_image_id = f"image:{movie_image_id}"
+            return movie_image_id
+        
+
+        return "OOPs I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
 
     def _is_genre_apprears_in_user_query(self, user_query:str) -> bool:
         for genre in TOP_20_GENRES:
