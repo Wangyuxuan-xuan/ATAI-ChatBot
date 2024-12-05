@@ -69,6 +69,7 @@ class response_generator:
 
         question_type: QuestionType = self._get_question_type(user_query)
 
+        print(f"Question type: {question_type}")
         response = ""
 
         if question_type == QuestionType.FACTUAL:
@@ -76,14 +77,14 @@ class response_generator:
         elif question_type == QuestionType.RECOMMENDATION:
             response = self._answer_recommendation_questions(user_query, matched_movies_list)
         elif question_type == QuestionType.MULTIMEDIA:
-            response = self._answer_multimedia_questions(user_query, matched_movies_list)
+            response = self._answer_multimedia_questions(user_query, matched_movies_list, person_name_list)
         else:
             response = self._handle_unrelated_questions(user_query)
         
         return response
     
     def _handle_unrelated_questions(self, user_query: str):
-        return "Appoligze that I have knowledge of movie related questions only."
+        return "I am a movie chatbot, I applogize that I can answer movie related question only"
 
     def _get_question_type(self, user_query) -> QuestionType:
 
@@ -166,16 +167,30 @@ class response_generator:
         print(f"Multimedia - best_matched_person: {best_matched_person}")
         print(f"Multimedia - best_matched_movie: {best_matched_movie}")
 
+        error_msg = ""
+
         if best_matched_person:
             person_image_id = self.multimedia_handler.show_image_for_person(user_query, best_matched_person)
-            person_image_id = f"image:{person_image_id}"
-            return person_image_id
+            
+            if person_image_id:
+                person_image_id = f"image:{person_image_id}"
+                return person_image_id
+            else:
+                error_msg += f"I applogize, no image is found for {best_matched_person}"
         
         if best_matched_movie:
             movie_image_id = self.multimedia_handler.show_image_for_movie(user_query, best_matched_movie)
-            movie_image_id = f"image:{movie_image_id}"
-            return movie_image_id
+            
+            if movie_image_id:
+                movie_image_id = f"image:{movie_image_id}"
+                return movie_image_id
+            else:
+                if error_msg:
+                    error_msg += "\n"
+                error_msg += f"I applogize, no image is found for {best_matched_movie}"
         
+        if error_msg:
+            return error_msg
 
         return "OOPs I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
 
@@ -218,13 +233,18 @@ class response_generator:
     def _generate_prompt_for_factual_questions(self, movie_info: dict, user_query: str) -> str:
         
         system_msg = '''
-        You are a specialized movie chatbot to answer user queries in 1 short sentence, maxmum 10 words.
-
+        You are a specialized movie chatbot to answer user queries in 1 short sentence, maxmum 10 words. 
+        
+        DO NOT answer any question or subquestion unrelated to movie. 
+        For example: 
+        user: When was the godfather released and what is 2 + 2 ?
+        answer: answer the godfather release date and ignore the question of 2 + 2
+        
         Prioritize the provided data to formulate your response. 
 
         Kindly remind the user to focus on movie related questions if the question is not movie related
 
-        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer plot questions.
+        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer any question unrelated to movie. DO NOT answer plot questions.
         '''
 
         prompt = [

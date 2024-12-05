@@ -1,5 +1,5 @@
 import re
-from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline
+from transformers import AutoTokenizer, AutoModelForTokenClassification, pipeline, logging
 from thefuzz import fuzz, process
 import pickle
 
@@ -21,6 +21,7 @@ class NameEntityRecognizer:
                 )        
         # Load self tuned BERT NER model
         self.tuned_movie_ner_pipeline = pipeline("ner", model=self.tuned_movie_bert_base_NER, tokenizer=self.tuned_movie_bert_base_NER, aggregation_strategy="simple", device="cuda")
+        logging.set_verbosity_error()
         self._init_Dataset()
 
     def _init_Dataset(self):
@@ -29,6 +30,22 @@ class NameEntityRecognizer:
         self.movie_title_set = set(movie_titles)
 
     def get_best_match_person(self, user_query: str) -> list:
+
+        Replace_list = {
+           "Tom Hank":  "Tom Hanks"
+        }
+
+        ner_res = self._get_best_match_person(user_query)
+        res = []
+        for ner_person in ner_res:
+            if ner_person in Replace_list:
+                ner_person = res[ner_person]
+
+            res.append(ner_person)
+
+        return res
+
+    def _get_best_match_person(self, user_query: str) -> list:
         '''
         Extract the person name from user_query using bert_base_NER_pipeline.
         Concatenate the result, format the result to be the exact person name,
@@ -224,9 +241,7 @@ class NameEntityRecognizer:
         for m in matched_movies:
             m_cleaned = remove_non_alphanumeric(m)
             
-            for word in user_input_cleaned:
-                if m_cleaned.lower() == word:
-                    res.append(m)
-
+            if m_cleaned.lower() in user_input_cleaned.lower():
+                res.append(m)
         
         return res

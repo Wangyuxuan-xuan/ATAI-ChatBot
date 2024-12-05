@@ -65,6 +65,9 @@ class GraphProcessor:
 
             crowd_answer = self.ent2lbl[entity_url]
 
+        if not crowd_answer:
+            return ""
+
         crowd_match = self.crowd_source_data[self.crowd_source_data['Input1ID'].str.contains(movie_entity, na=False)]
         if not crowd_match.empty:
             crowd_disclaimer = f'[Crowd, inter-rater agreement {crowd_match["FleissKappa"].iloc[0]}, The answer distribution for this specific task was {crowd_match["CORRECT"].iloc[0]} support votes, {crowd_match["INCORRECT"].iloc[0]} reject votes]'
@@ -72,8 +75,12 @@ class GraphProcessor:
         return self._format_answer_for_crowd_sourcing(crowd_answer, best_matched_movie, relation_label, crowd_disclaimer)
     
     def _format_answer_for_crowd_sourcing(self, crowd_answer, best_matched_movie, relation_label, crowd_disclaimer) -> str:
+        
         # Return the result
         response = f"Answer by crowd sourcing: The {relation_label.replace('_', ' ')} of {best_matched_movie} is {crowd_answer}."
+        
+        if not crowd_disclaimer:
+            return response
         
         return response + "\n" + crowd_disclaimer
 
