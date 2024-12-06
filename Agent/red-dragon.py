@@ -2,6 +2,7 @@ import random
 from speakeasypy import Speakeasy, Chatroom
 from typing import List
 import time
+import traceback
 from Agent.constants import INITIAL_RESPONSES
 from response_generator import response_generator
 
@@ -57,9 +58,20 @@ class Agent:
                         f"- <Response> #{message.ordinal}: '{response}' "
                         f"- {self.get_time()}")
                     
-                    response = response.encode('utf-8')
-                    room.post_messages(response.decode('utf-8'))
-                    
+                    try:
+                        # Ensure response is encoded in UTF-8
+                        response = response.encode('utf-8')
+                        response = response.decode('utf-8')
+                        response = response.encode('latin-1', 'replace').decode('latin-1')
+                        # Post the message
+                        room.post_messages(response)
+                    except Exception as e:
+                    # Handle encoding errors
+                        print("An Exception occurred while posting the message to room")
+                        # Optionally, retry with a preprocessed response
+                        response = response.encode('utf-8')
+                        response = response.decode('utf-8')
+                        room.post_messages(response)
                     # room.post_messages(response)
                     
     
@@ -110,6 +122,7 @@ class Agent:
             response = self.response_generator.get_response(message)
         except Exception as e:
             print(f"Error generating response: {str(e)}")
+            traceback.print_exc()  # Print the full stack trace
             response = "I apologize, but I encountered an error while processing your request. Please try again :("
 
         return response

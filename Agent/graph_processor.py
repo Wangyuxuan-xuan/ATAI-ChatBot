@@ -41,6 +41,9 @@ class GraphProcessor:
         
         relation_entity, relation_label = self._get_relation_entity_from_user_query(user_query)
 
+        if not relation_entity or not relation_label:
+            return ""
+        
         crowd_data_relation_list = self.crowd_source_data['Input2ID'].values
 
         # Check whether relation exists and return the answer
@@ -52,6 +55,9 @@ class GraphProcessor:
         else:
             selected_row = self.crowd_source_data[self.crowd_source_data['Input1ID'] == movie_entity]
 
+        if selected_row.empty:
+            return ""
+        
         crowd_answer = selected_row['Input3ID'].values
 
         if crowd_answer:
@@ -262,6 +268,9 @@ class GraphProcessor:
     def _get_relation_entity_from_user_query(self, user_query):
 
         intent = self.embedding_handler.get_embedding_relation(user_query)
+        if not intent:
+            return "", ""
+        
         relation_label = intent.value 
 
         relation_uri = self.embedding_handler.lbl2rel[relation_label]

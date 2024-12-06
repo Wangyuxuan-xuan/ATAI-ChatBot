@@ -71,6 +71,8 @@ class EmbeddingHandler:
         movie_embed = self.ent_embeds[movie_id].reshape(1, -1)
 
         intent = self.get_embedding_relation(user_query)
+        if not intent:
+            return ""
         relation_label = intent.value 
 
         relation_uri = self.lbl2rel[relation_label]
