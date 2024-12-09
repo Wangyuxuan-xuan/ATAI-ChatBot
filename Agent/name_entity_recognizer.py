@@ -209,7 +209,10 @@ class NameEntityRecognizer:
         for match, score in extract_results:
             if not match:
                 continue
-
+            
+            if score < 80:
+                continue
+            
             res.append(match)
             # print(f"{match}, {score}")
 

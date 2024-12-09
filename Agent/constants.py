@@ -1,4 +1,4 @@
-RESPONSE_NO_KNOWLEDGE = "I apologize, I do not have this knowledge at the moment. Please be more specific, thanks :)"
+RESPONSE_NO_KNOWLEDGE = "I apologize, I do not have this knowledge at the moment. Could you be more specific? Thanks :)"
 RESPONSE_ERROR = "I apologize, but I encountered an error while processing your request. Please try again :("
 
 SYNONYMS = {
