@@ -321,6 +321,7 @@ class GraphProcessor:
             print("Loading serialized graph...")
             with open(serialized_path, 'rb') as f:
                 self.graph = pickle.load(f)
+            print("serialized graph loaded")
         else:
             # Load the graph from Turtle file if serialized graph doesn't exist
             print("Parsing KG file...")

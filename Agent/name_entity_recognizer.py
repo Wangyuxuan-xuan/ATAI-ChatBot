@@ -8,7 +8,9 @@ class NameEntityRecognizer:
 
     def __init__(self):
 
+        logging.set_verbosity_error()
         # Load the pre-trained BERT NER model from Hugging Face
+        print("Loading NER Module")
         self.bert_base_NER = "dslim/bert-base-NER"
         self.bert_base_NER_tokenizer = AutoTokenizer.from_pretrained(self.bert_base_NER)
         self.bert_base_NER_model = AutoModelForTokenClassification.from_pretrained(self.bert_base_NER)
@@ -18,16 +20,20 @@ class NameEntityRecognizer:
                     tokenizer=self.bert_base_NER_tokenizer,
                     aggregation_strategy="simple",
                     device="cuda"
-                )        
+                )
+        
         # Load self tuned BERT NER model
         self.tuned_movie_ner_pipeline = pipeline("ner", model=self.tuned_movie_bert_base_NER, tokenizer=self.tuned_movie_bert_base_NER, aggregation_strategy="simple", device="cuda")
-        logging.set_verbosity_error()
+        print("Loaded NER Module") 
+        
         self._init_Dataset()
 
     def _init_Dataset(self):
+        print("Loading MovieTitles.pickle")
         with open("../Dataset/MovieTitles.pickle", 'rb') as f:
             movie_titles = pickle.load(f)
         self.movie_title_set = set(movie_titles)
+        print("Loaded MovieTitles.pickle")
 
     def get_best_match_person(self, user_query: str) -> list:
 

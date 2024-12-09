@@ -24,6 +24,7 @@ class Relation(Enum):
 class EmbeddingHandler:
 
     def __init__(self, graph, ent2lbl):
+        print("Loading Embedding data")
         self.graph = graph
         self.ent2lbl = ent2lbl
         #Load entity and relation embeddings
@@ -44,6 +45,7 @@ class EmbeddingHandler:
         self.rel2lbl = {k:v for k, v in self.ent2lbl.items() if self._is_relation(k)}
         self.lbl2rel = {lbl: ent for ent, lbl in self.rel2lbl.items()}
 
+        print("Loaded Embedding data")
 
     def get_answer_from_embedding(self, movie_name, user_query) -> str:
         """

@@ -37,6 +37,7 @@ class response_generator:
         self.recommendation_handler = RecommendationHandler(self.graph_processor)
         self.multimedia_handler = MultimediaHandler(self.graph_processor)
 
+        print("Init Llama-3.2-1B-Instruct")
         # Initialize Llama-3.2-1B-Instruct
         model_id = "meta-llama/Llama-3.2-1B-Instruct"
         access_token = "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"
@@ -49,6 +50,7 @@ class response_generator:
             token =access_token  
         )
 
+        print("Initialized Llama-3.2-1B-Instruct")
         # Load the question classifier model and vectorizer
         checkpoint = torch.load(self.question_classifier_path, weights_only = False)
         self.question_classifier = checkpoint['svm_model']
@@ -84,7 +86,7 @@ class response_generator:
         return response
     
     def _handle_unrelated_questions(self, user_query: str):
-        return "I am a movie chatbot, I applogize that I can answer movie related question only"
+        return "I am a movie chatbot, I apologize that I can answer movie related question only"
 
     def _get_question_type(self, user_query) -> QuestionType:
 
@@ -178,7 +180,7 @@ class response_generator:
                 person_image_id = f"image:{person_image_id}"
                 return person_image_id
             else:
-                error_msg += f"I applogize, no image is found for {best_matched_person}"
+                error_msg += f"I apologize, no image is found for {best_matched_person}"
         
         if best_matched_movie:
             movie_image_id = self.multimedia_handler.show_image_for_movie(user_query, best_matched_movie)
@@ -189,7 +191,7 @@ class response_generator:
             else:
                 if error_msg:
                     error_msg += "\n"
-                error_msg += f"I applogize, no image is found for {best_matched_movie}"
+                error_msg += f"I apologize, no image is found for {best_matched_movie}"
         
         if error_msg:
             return error_msg

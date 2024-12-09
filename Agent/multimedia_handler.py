@@ -18,6 +18,7 @@ class MultimediaHandler:
         # Build a mapping from person ID to list of image entries
         self.person_to_images = {}  # Key: person_id, Value: list of image entries
         
+        print("Processing images data")
         for entry in self.data:
             # Map movie IDs to images
             movies = entry.get('movie', [])
@@ -32,7 +33,7 @@ class MultimediaHandler:
                 if person_id not in self.person_to_images:
                     self.person_to_images[person_id] = []
                 self.person_to_images[person_id].append(entry)
-        
+        print("Processed images data")
 
     def show_image_for_movie(self, user_query:str, movie_name: str)-> str:
         
