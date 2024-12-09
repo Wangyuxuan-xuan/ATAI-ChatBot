@@ -103,7 +103,7 @@ class NameEntityRecognizer:
             res = self.get_best_match_MISC_use_bert_base_NER(user_query)
         return res
     
-    def get_best_match_MISC_use_bert_base_NER(user_query: str) -> list:
+    def get_best_match_MISC_use_bert_base_NER(self, user_query: str) -> list:
         '''
         Extract the person name from user_query using bert_base_NER_pipeline.
         Concatenate the result, format the result to be the exact person name,

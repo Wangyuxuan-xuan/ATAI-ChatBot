@@ -75,7 +75,7 @@ class response_generator:
         if question_type == QuestionType.FACTUAL:
             response = self._answer_factual_questions(user_query, matched_movies_list)
         elif question_type == QuestionType.RECOMMENDATION:
-            response = self._answer_recommendation_questions(user_query, matched_movies_list)
+            response = self._answer_recommendation_questions(user_query, matched_movies_list, person_name_list)
         elif question_type == QuestionType.MULTIMEDIA:
             response = self._answer_multimedia_questions(user_query, matched_movies_list, person_name_list)
         else:
@@ -135,21 +135,23 @@ class response_generator:
 
         return response
 
-    def _answer_recommendation_questions(self, user_query:str, matched_movies_list):
+    def _answer_recommendation_questions(self, user_query:str, matched_movies_list, person_name_list):
 
-        
+        matched_movies_list = self.name_entity_recognizer.match_movie_list_with_user_query(matched_movies_list, user_query)
         features, recommend_movies = [], []
         try:
-            features, recommend_movies =  self.recommendation_handler.recommend_movies(matched_movies_list)
+            if matched_movies_list:
+                features, recommend_movies =  self.recommendation_handler.recommend_movies(matched_movies_list)
         except Exception as e:
             print(e)
             
         print(f"features: {features}")
         print(f"recommend_movies: {recommend_movies}")
 
-        
         if features and recommend_movies:
             response = self._hardcode_generate_recommendation_response(features, recommend_movies)
+        elif person_name_list:
+            response = self.recommendation_handler.recommend_movie_based_on_director_or_actor(person_name_list)
         elif self._is_genre_apprears_in_user_query(user_query):
             response = self._generate_recommendation_response_using_llama(user_query)
         else:
@@ -202,6 +204,8 @@ class response_generator:
                 return True
         
         return False
+
+    # def _recommend_movie_based_on_person():
 
     
     def _hardcode_generate_recommendation_response(self, features, recommend_movies) -> str:

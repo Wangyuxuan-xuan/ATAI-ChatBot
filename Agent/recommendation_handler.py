@@ -44,6 +44,54 @@ class RecommendationHandler:
         recommendations = recommendations[:top_k]  # Limit to top_k results
         return features, recommendations
 
+    def recommend_movie_based_on_director_or_actor(self, person_name_list):
+        res = []
+
+        for p in person_name_list:
+            recommendation = self._recommend_movie_based_on_director_or_actor(p)
+            res.append(recommendation)
+        
+        return res
+
+    def _recommend_movie_based_on_director_or_actor(self, person_name):
+        # Convert person label to entity URI
+        if person_name not in self.graph_processor.embedding_handler.lbl2ent:
+            # Person not found in the KG embedding dictionary
+            return []
+
+        person_uri = self.graph_processor.embedding_handler.lbl2ent[person_name]
+
+        # SPARQL Query:
+        # We look for movies (wdt:P31 wd:Q11424) for which the given person is either a director (wdt:P57)
+        # or an actor (wdt:P161).
+        query = f'''
+            PREFIX wd: <http://www.wikidata.org/entity/>
+            PREFIX wdt: <http://www.wikidata.org/prop/direct/>
+            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+
+            SELECT DISTINCT ?movie ?movieLabel WHERE {{
+              ?movie wdt:P31 wd:Q11424.
+              {{
+                ?movie wdt:P57 <{person_uri}>  # Director
+              }} UNION {{
+                ?movie wdt:P161 <{person_uri}> # Actor
+              }}
+              SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
+            }}
+        '''
+
+        results = self.graph_processor.graph.query(query)
+
+        # Extract movie labels
+        movie_results = []
+        for row in results:
+            movie_uri = row[0]
+            movie_label = str(row[1])
+            movie_results.append(movie_label)
+
+        # Return top 3 if multiple found
+        return movie_results[:3]
+
     def get_top_k_features(self, liked_movies: list, top_k: int = 3) -> list:
         """
         Recommend movies based on all features of liked movies using K-means clustering.

@@ -101,7 +101,7 @@ class GraphProcessor:
         except:
             return ""
 
-    def _get_imdb_id_from_graph(self, movie_name: str):
+    def _get_imdb_id_from_graph(self, label: str):
         """
         Retrieves the IMDb ID of a movie based on its label name using SPARQL.
         """
@@ -114,7 +114,7 @@ class GraphProcessor:
                 ?movie wdt:P345 ?imdbId .
             }}
         '''
-        query = query_template.format(movie_name)
+        query = query_template.format(label)
         result = self.graph.query(query)
 
         # Extract the IMDb ID from the query result

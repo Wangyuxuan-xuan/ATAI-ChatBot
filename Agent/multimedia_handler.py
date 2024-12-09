@@ -117,14 +117,6 @@ class MultimediaHandler:
                     # No image found
                     return None
     
-    def _get_image_id_from_imdb_id_dummy(self, imdb_id):
-        # TODO implement this function, Note that the json data is large, the search should be effcient. 
-        # Note that there might be multiple match for a movie imdb_id and img, and one img might has multiple movies as well
-        # it is a many to many relation ship. 
-        # For a given movie imdb, We will first check if 'type' is 'poster' and try to use it, if not usable (not exist)
-        # If no 'poster' type images, fall back to 'publicity'
-        pass
-    
     def _get_imdb_id(self, lable: str):
         
         imdb_id = self.graph_processor._get_imdb_id_from_graph(lable)
