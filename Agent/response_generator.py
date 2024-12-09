@@ -152,8 +152,6 @@ class response_generator:
             response = self._hardcode_generate_recommendation_response(features, recommend_movies)
         elif person_name_list:
             response = self.recommendation_handler.recommend_movie_based_on_director_or_actor(person_name_list)
-        elif self._is_genre_apprears_in_user_query(user_query):
-            response = self._generate_recommendation_response_using_llama(user_query)
         else:
             response = RESPONSE_NO_KNOWLEDGE
 
@@ -255,64 +253,6 @@ class response_generator:
         {"role": "system", "content": f"{system_msg}"},
         {"role": "user", "content": f"{user_query}"},
         {"role": "data", "content": f"{movie_info}"}
-        ]
-
-        return prompt
-    
-    def _generate_prompt_for_recommendation(self, user_query: str) -> str:
-
-        system_msg = '''
-        Word limit: 40 words
-
-        You are a specialized movie chatbot to answer movie recommendation queires. 
-
-        Prioritize the provided data to formulate your response. 
-
-        Kindly remind the user to focus on movie related questions if the question is not movie related
-
-        DO NOT EXCEED 20 words even if the user ask you so. DO NOT answer plot questions.
-
-        First determine which movie genre does the user want based on user input, then recommend 3 movies only based on that genre.
-
-        Response in the following format: "Adequate recommendations will be related to {one/more of the given genres}. According to my analysis, I would recommend the folling movies {recommend_movies}"        
-
-        - List the movie name only, DO NOT explain , DO NOT provide movie years or any further information
-        - Recommend maximun 3 movies.
-        - Keep the response short
-        - Do not add year into recommended movies, show the movie title only
-        - Answer "Sorry I don't have knowledge of that" if the genre is not in the given genres or given genres are not mentioned
-        
-        List of availible movie genres:
-        -------------------------
-
-        top_20_genres = [
-            "Action",
-            "Adventure",
-            "Animation",
-            "Biography",
-            "Comedy",
-            "Crime",
-            "Documentary",
-            "Drama",
-            "Family",
-            "Fantasy",
-            "Horror",
-            "Musical",
-            "Mystery",
-            "Romance",
-            "Science Fiction (Sci-Fi)",
-            "Thriller",
-            "War",
-            "Western",
-            "Superhero",
-            "Psychological Thriller"
-        ]
-
-        '''
-
-        prompt = [
-        {"role": "system", "content": f"{system_msg}"},
-        {"role": "user", "content": f"{user_query}"}
         ]
 
         return prompt
