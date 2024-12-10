@@ -7,7 +7,7 @@ import torch
 import re
 import random
 from name_entity_recognizer import NameEntityRecognizer
-from constants import RESPONSE_ERROR, RESPONSE_NO_KNOWLEDGE, SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
+from constants import EMBEDDING_REL_MAPPING, PRE_DEFINED_ANSWER, RESPONSE_ERROR, RESPONSE_NO_KNOWLEDGE, SYNONYMS, SPARQL_RELATION_MAPPING, GREETING_SET, INITIAL_RESPONSES, PERIODIC_RESPONSES, TOP_20_GENRES
 
 class Intent(Enum):
     DIRECTOR = "director"
@@ -57,10 +57,13 @@ class response_generator:
         self.question_classifier_vectorizer = checkpoint['vectorizer']
 
     def get_response(self, user_query: str) -> str:
-        # Preprocess the user query to detect greetings
-        processed_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.lower().strip())
-        if processed_query in GREETING_SET:
-            return "Hello! I'm a movie chatbot, how can I help you today?"
+        plot_keywords = {"plot", "plots", "ploting"}
+        if any(keyword in user_query for keyword in plot_keywords):
+            return "Sorry, I do not have this knowledge."  
+        
+        pre_defined_res = self._handle_predefined_question(user_query)
+        if pre_defined_res:
+            return pre_defined_res
 
         # Step 1: Perform NER
         matched_movies_list = self.name_entity_recognizer.get_matched_movies_list(user_query)
@@ -85,6 +88,19 @@ class response_generator:
         
         return response
     
+    def _handle_predefined_question(self, user_query: str):
+        # Preprocess the user query to detect greetings
+        processed_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.lower().strip())
+        if processed_query in GREETING_SET:
+            return "Hello! I'm a movie chatbot, how can I help you today?"
+
+        processed_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.strip())
+        processed_query = processed_query.strip()
+        if processed_query in PRE_DEFINED_ANSWER:
+            return PRE_DEFINED_ANSWER[processed_query]
+        
+        return ""
+        
     def _handle_unrelated_questions(self, user_query: str):
         return "I am a movie chatbot, I apologize that I can answer movie related question only"
 
@@ -106,7 +122,30 @@ class response_generator:
             case "Factual": return QuestionType.FACTUAL
             case "Recommendation": return QuestionType.RECOMMENDATION
             case "Multimedia": return QuestionType.MULTIMEDIA
-            case "Unrelated": return QuestionType.UNRELATED
+            case "Unrelated": return self._double_check_question_type_for_unRelated(user_query)
+
+    def _double_check_question_type_for_unRelated(self, user_query: str) -> QuestionType:
+        user_query = re.sub(r'[^a-zA-Z0-9 ]', '', user_query.lower().strip())
+
+        factual_keywords = {"language", "mpaa"}
+        for key, keywords in EMBEDDING_REL_MAPPING.items():
+            factual_keywords.update(keywords)
+
+        # Keywords for multimedia-related queries
+        multimedia_keywords = {"show", "display", "view", "picture", "present", "see", "demonstrate", "illustrate"}
+        # Keywords for recommendation-related queries
+        recommendation_keywords = {"recommend", "suggest", "advise", "offer", "favor", "i like", "i like"}
+        
+        if any(keyword in user_query for keyword in factual_keywords):
+            return QuestionType.FACTUAL
+        
+        if any(keyword in user_query for keyword in multimedia_keywords):
+            return QuestionType.MULTIMEDIA
+        
+        if any(keyword in user_query for keyword in recommendation_keywords):
+            return QuestionType.RECOMMENDATION
+
+        return QuestionType.UNRELATED
 
 
     def _answer_factual_questions(self, user_query: str, matched_movies_list):
@@ -140,6 +179,15 @@ class response_generator:
     def _answer_recommendation_questions(self, user_query:str, matched_movies_list, person_name_list):
 
         features, recommend_movies = [], []
+
+        cleaned_movie_list = []
+        for m in matched_movies_list:
+            if m in user_query:
+                cleaned_movie_list.append(m)
+
+        matched_movies_list = cleaned_movie_list
+
+        print(f"recommendation cleaned_movie_list: {matched_movies_list}")
 
         if matched_movies_list:
             try:
@@ -202,7 +250,7 @@ class response_generator:
         if error_msg:
             return error_msg
 
-        return "OOPs I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
+        return "Oops I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
 
     def _is_genre_apprears_in_user_query(self, user_query:str) -> bool:
         for genre in TOP_20_GENRES:

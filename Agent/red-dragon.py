@@ -60,18 +60,16 @@ class Agent:
                     
                     try:
                         # Ensure response is encoded in UTF-8
+                        response = str(response)
                         response = response.encode('utf-8')
-                        response = response.decode('utf-8')
-                        response = response.encode('latin-1', 'replace').decode('latin-1')
+                        response = response.decode('latin-1')
                         # Post the message
                         room.post_messages(response)
                     except Exception as e:
                     # Handle encoding errors
                         print("An Exception occurred while posting the message to room")
                         # Optionally, retry with a preprocessed response
-                        response = response.encode('utf-8')
-                        response = response.decode('utf-8')
-                        room.post_messages(response)
+                        room.post_messages(str(response))
                     # room.post_messages(response)
                     
     
@@ -82,7 +80,7 @@ class Agent:
                     # Mark the message as processed, so it will be filtered out when retrieving new messages.
                     room.mark_as_processed(message)
 
-                """
+                
                 # NOW, LET'S NOT THINK ABOUT THE REACTIONS! WE SHOULD FOCUS ON THE SPARQL QUERYING.
 
                 # Retrieve reactions from this chat room.
@@ -98,7 +96,7 @@ class Agent:
                     room.post_messages(f"Received your reaction: '{reaction.type}' ")
                     room.mark_as_processed(reaction)
 
-                """
+
 
             time.sleep(listen_freq)
 

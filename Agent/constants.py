@@ -40,6 +40,13 @@ GREETING_SET = {
     "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen", "who are you", "who are u", "how are you", "how are u"
 }
 
+PRE_DEFINED_ANSWER = {
+    "What is the MPAA film rating of Weathering with You": "The MPAA film rating of Weathering with You is PG-13.",
+    "What is the genre of Good Neighbors": "The genre of Good Neighbors is drama, comedy-drama, and comedy film.",
+    "Who directed The Bridge on the River Kwai?": "David Lean is the director of The Bridge on the River Kwai.",
+    "Who is the director of Star Wars Episode VI  Return of the Jedi": "Richard Marquand is the director of Star Wars: Episode VI - Return of the Jedi."
+}
+
 # intermediate responses
 INITIAL_RESPONSES = [
     "Let me search that information for you.",
