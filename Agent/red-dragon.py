@@ -35,7 +35,8 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. How can I help you today :)
+                    room.post_messages('''
+                    Hello! Welcome! I'm a movie chatbot. How can I help you today? :)
                     ''')
                     room.initiated = True
  

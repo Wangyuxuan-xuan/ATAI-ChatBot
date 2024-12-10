@@ -218,11 +218,33 @@ class response_generator:
         
         # TODO support multiple
         best_matched_movie = matched_movies_list[0] if matched_movies_list else ""
-        best_matched_person = person_name_list[0] if person_name_list else ""
+        # best_matched_person = person_name_list[0] if person_name_list else ""
 
-        print(f"Multimedia - best_matched_person: {best_matched_person}")
+        print(f"Multimedia - matched_person: {person_name_list}")
         print(f"Multimedia - best_matched_movie: {best_matched_movie}")
 
+        res = []
+
+        for person in person_name_list:
+            imageOrError = self._answer_multimedia_question_for_movie_or_person(user_query, "", person)
+            res.append(imageOrError)
+
+        if person_name_list and res:
+            formated_str = ""
+            for i in res:
+                formated_str += i
+                formated_str += " "
+            return formated_str
+        
+
+        if best_matched_movie:
+            movie_image = self._answer_multimedia_question_for_movie_or_person(user_query, best_matched_movie, "")
+            
+            return movie_image
+        
+        return "Oops, I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
+
+    def _answer_multimedia_question_for_movie_or_person(self, user_query: str, best_matched_movie, best_matched_person):
         error_msg = ""
 
         if best_matched_person:
@@ -233,7 +255,7 @@ class response_generator:
                 return person_image_id
             else:
                 print(f"no image is found for {best_matched_person}")
-                error_msg += f"I apologize, no image is found for the person in the movienet dataset"
+                error_msg += f"I apologize, no image is found for the person in the movienet dataset."
         
         if best_matched_movie:
             movie_image_id = self.multimedia_handler.show_image_for_movie(user_query, best_matched_movie)
@@ -245,12 +267,12 @@ class response_generator:
                 if error_msg:
                     error_msg += "\n"
                 print(f"no image is found for {best_matched_movie}")
-                error_msg += f"I apologize, no image is found for the movie in the movienet dataset"
+                error_msg += f"I apologize, no image is found for the movie in the movienet dataset."
         
         if error_msg:
             return error_msg
 
-        return "Oops I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
+        return "Oops, I could now recongize any person or movies names, please make sure they are Captitalized and correctly typed, thanks :)"
 
     def _is_genre_apprears_in_user_query(self, user_query:str) -> bool:
         for genre in TOP_20_GENRES:
