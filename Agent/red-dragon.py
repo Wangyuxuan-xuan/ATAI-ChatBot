@@ -35,8 +35,8 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages('''
-                    Hello! Welcome! I'm a movie chatbot. How can I help you today? :)
+                    room.post_messages(
+                    '''Hello! Welcome! I'm a movie chatbot. How can I help you today? :)
                     ''')
                     room.initiated = True
  
@@ -70,7 +70,10 @@ class Agent:
                     # Handle encoding errors
                         print("An Exception occurred while posting the message to room")
                         # Optionally, retry with a preprocessed response
-                        room.post_messages(str(response))
+                        try:
+                            room.post_messages(str(response))
+                        except Exception as e:
+                            print("An Exception occurred while posting the message to room")
                     # room.post_messages(response)
                     
     

@@ -57,7 +57,7 @@ class response_generator:
         self.question_classifier_vectorizer = checkpoint['vectorizer']
 
     def get_response(self, user_query: str) -> str:
-        plot_keywords = {"plot", "plots", "ploting"}
+        plot_keywords = {"plot", "plots", "ploting", "language model", "language models"}
         if any(keyword in user_query for keyword in plot_keywords):
             return "Sorry, I do not have this knowledge."  
         
