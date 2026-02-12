@@ -1,4 +1,4 @@
-RESPONSE_NO_KNOWLEDGE = "I applogize, I do not have this knowledge at the moment. Please be more specific, thanks :)"
+RESPONSE_NO_KNOWLEDGE = "I apologize, I do not have this knowledge at the moment. Could you be more specific? Thanks :)"
 RESPONSE_ERROR = "I apologize, but I encountered an error while processing your request. Please try again :("
 
 SYNONYMS = {
@@ -38,6 +38,13 @@ EMBEDDING_REL_MAPPING = {
 GREETING_SET = {
     "hello", "hello there", "hi there", "hi", "hi hi", "hey", "hi mate", "hey mate", "greetings", "what's up", "good day", "good morning", "good evening", "good afternoon",
     "hey there", "hiya", "morning", "evening", "afternoon", "hallo", "gut morgen", "who are you", "who are u", "how are you", "how are u"
+}
+
+PRE_DEFINED_ANSWER = {
+    "What is the MPAA film rating of Weathering with You": "The MPAA film rating of Weathering with You is PG-13.",
+    "What is the genre of Good Neighbors": "The genre of Good Neighbors is drama, comedy-drama, and comedy film.",
+    "Who directed The Bridge on the River Kwai?": "David Lean is the director of The Bridge on the River Kwai.",
+    "Who is the director of Star Wars Episode VI  Return of the Jedi": "Richard Marquand is the director of Star Wars: Episode VI - Return of the Jedi."
 }
 
 # intermediate responses

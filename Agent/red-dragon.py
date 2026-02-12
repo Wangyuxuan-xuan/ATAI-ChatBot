@@ -2,6 +2,7 @@ import random
 from speakeasypy import Speakeasy, Chatroom
 from typing import List
 import time
+import traceback
 from Agent.constants import INITIAL_RESPONSES
 from response_generator import response_generator
 
@@ -34,7 +35,8 @@ class Agent:
                 if not room.initiated:
 
                     # Send a welcome message if room is not initiated
-                    room.post_messages('''Hello! Welcome! I'm a movie chatbot. How can I help you today :)
+                    room.post_messages(
+                    '''Hello! Welcome! I'm a movie chatbot. How can I help you today? :)
                     ''')
                     room.initiated = True
  
@@ -57,9 +59,21 @@ class Agent:
                         f"- <Response> #{message.ordinal}: '{response}' "
                         f"- {self.get_time()}")
                     
-                    response = response.encode('utf-8')
-                    room.post_messages(response.decode('utf-8'))
-                    
+                    try:
+                        # Ensure response is encoded in UTF-8
+                        response = str(response)
+                        response = response.encode('utf-8')
+                        response = response.decode('latin-1')
+                        # Post the message
+                        room.post_messages(response)
+                    except Exception as e:
+                    # Handle encoding errors
+                        print("An Exception occurred while posting the message to room")
+                        # Optionally, retry with a preprocessed response
+                        try:
+                            room.post_messages(str(response))
+                        except Exception as e:
+                            print("An Exception occurred while posting the message to room")
                     # room.post_messages(response)
                     
     
@@ -70,7 +84,7 @@ class Agent:
                     # Mark the message as processed, so it will be filtered out when retrieving new messages.
                     room.mark_as_processed(message)
 
-                """
+                
                 # NOW, LET'S NOT THINK ABOUT THE REACTIONS! WE SHOULD FOCUS ON THE SPARQL QUERYING.
 
                 # Retrieve reactions from this chat room.
@@ -86,7 +100,7 @@ class Agent:
                     room.post_messages(f"Received your reaction: '{reaction.type}' ")
                     room.mark_as_processed(reaction)
 
-                """
+
 
             time.sleep(listen_freq)
 
@@ -110,6 +124,7 @@ class Agent:
             response = self.response_generator.get_response(message)
         except Exception as e:
             print(f"Error generating response: {str(e)}")
+            traceback.print_exc()  # Print the full stack trace
             response = "I apologize, but I encountered an error while processing your request. Please try again :("
 
         return response

@@ -24,6 +24,7 @@ class Relation(Enum):
 class EmbeddingHandler:
 
     def __init__(self, graph, ent2lbl):
+        print("Loading Embedding data")
         self.graph = graph
         self.ent2lbl = ent2lbl
         #Load entity and relation embeddings
@@ -44,6 +45,7 @@ class EmbeddingHandler:
         self.rel2lbl = {k:v for k, v in self.ent2lbl.items() if self._is_relation(k)}
         self.lbl2rel = {lbl: ent for ent, lbl in self.rel2lbl.items()}
 
+        print("Loaded Embedding data")
 
     def get_answer_from_embedding(self, movie_name, user_query) -> str:
         """
@@ -70,7 +72,9 @@ class EmbeddingHandler:
         movie_id = self.ent2id[movie_uri]
         movie_embed = self.ent_embeds[movie_id].reshape(1, -1)
 
-        intent = self._get_embedding_relation(user_query)
+        intent = self.get_embedding_relation(user_query)
+        if not intent:
+            return ""
         relation_label = intent.value 
 
         relation_uri = self.lbl2rel[relation_label]
@@ -175,7 +179,7 @@ class EmbeddingHandler:
         return relation_embeddings
 
     
-    def _get_embedding_relation(self, message: str) -> Relation:
+    def get_embedding_relation(self, message: str) -> Relation:
         """
         Determine the user's intent based on keywords in the message.
         """
